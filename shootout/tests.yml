@@ -1,95 +1,41 @@
 binary-trees:
   run:
-    args: ['16']
+    args: ['13']
   test:
     args: ['8']
 
-build-tree:
-  run:
-    args: ['2000000']
-  test:
-    args: ['4000']
-
-f1int:
-  run:
-    args: ['10']
-  test:
-    args: ['1']
-
 fannkuch:
   run:
-    args: ['10']
+    args: ['6']
   test:
     args: ['4']
 
 fasta:
   run:
-    args: ['250000']
+    args: ['15000']
   test:
     args: ['1000']
 
 float:
   run:
-    args: ['1000']
+    args: ['100']
   test:
     args: ['50']
 
-k-nucleotide:
-  run:
-    infile: dna-in.txt
-  test:
-    infile: dna-in-small.txt
-
-mandelbrot:
-  run:
-    args: ['1024']
-  test:
-    args: ['256']
-
 meteor-contest:
   run:
-    args: ['100']
+    args: ['30']
   test:
     args: ['10']
 
 nbody:
   run:
-    args: ['200000']
+    args: ['10000']
   test:
     args: ['1000']
 
-oodemo:
-  run:
-    args: ['20000000']
-  test:
-    args: ['100']
-
-regex-dna:
-  run:
-    infile: dna-in.txt
-  test:
-    infile: dna-in-small.txt
-
-reverse-complement:
-  run:
-    infile: dna-in-huge.txt
-  test:
-    infile: dna-in-small.txt
-
 spectral-norm:
   run:
-    args: ['400']
+    args: ['40']
   test:
     args: ['20']
-
-linked-list:
-  run:
-    args: ['2000000']
-  test:
-    args: ['100']
-
-richards:
-  run:
-    args: ['10']
-  test:
-    args: ['1']
