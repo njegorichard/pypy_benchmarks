@@ -140,5 +140,6 @@ def main(n):
     print len(solutions),  'solutions found\n'
     for i in (0, -1): print_board(solutions[i])
 
-main(int(sys.argv[1]))
+for i in range(int(sys.argv[2])):
+    main(int(sys.argv[1]))
 

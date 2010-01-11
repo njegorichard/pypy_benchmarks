@@ -54,4 +54,5 @@ def main():
     print o
 
 if __name__ == '__main__':
-    main()
+    for i in range(int(sys.argv[2])):
+        main()

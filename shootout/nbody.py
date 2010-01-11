@@ -114,5 +114,5 @@ def main(n, ref='sun'):
     advance(0.01, n)
     report_energy()
 
-
-main(int(sys.argv[1]))
+for i in range(int(sys.argv[2])):
+    main(int(sys.argv[1]))

@@ -46,10 +46,10 @@ def fannkuch(n):
         else:
             return max_flips
 
-def main():
-    from sys import argv
-    n = int(argv and argv[1] or 1)
+def main(n):
     print "Pfannkuchen(%d) = %d\n" % (n, fannkuch(n)),
 
 if __name__=="__main__":
-    main()
+    import sys
+    for i in range(int(sys.argv[2])):
+        main(int(sys.argv[1]))

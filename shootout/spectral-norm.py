@@ -54,4 +54,5 @@ def main():
     print "%0.9f" % (sqrt(vBv/vv))
 
 if __name__ == '__main__':
-    main()
+    for i in range(int(argv[2])):
+        main()

@@ -70,11 +70,12 @@ def randomFasta(table, n):
 
 n = int(sys.argv[1])
 
-print '>ONE Homo sapiens alu'
-repeatFasta(alu, n*2)
+for i in range(int(sys.argv[2])):
+    print '>ONE Homo sapiens alu'
+    repeatFasta(alu, n*2)
 
-print '>TWO IUB ambiguity codes'
-randomFasta(iub, n*3)
+    print '>TWO IUB ambiguity codes'
+    randomFasta(iub, n*3)
 
-print '>THREE Homo sapiens frequency'
-randomFasta(homosapiens, n*5)
+    print '>THREE Homo sapiens frequency'
+    randomFasta(homosapiens, n*5)
