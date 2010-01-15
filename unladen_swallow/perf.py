@@ -555,7 +555,7 @@ def RemovePycs():
 
 
 def Relative(path):
-    return os.path.join(os.path.dirname(sys.argv[0]), path)
+    return os.path.join(os.path.dirname(__file__), path)
 
 
 def LogCall(command):
