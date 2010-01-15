@@ -341,7 +341,7 @@ class MemoryUsageFuture(threading.Thread):
 
 class ComparisonResult(object):
     """ An object representing a result of run. Can be converted to
-    a string by calling stringRepresentation
+    a string by calling string_representation
     """
     def __init__(self, min_base, min_changed, delta_min, avg_base,
                  avg_changed, delta_avg, t_msg, std_base, std_changed,
@@ -358,7 +358,7 @@ class ComparisonResult(object):
         self.delta_std     = delta_std
         self.timeline_link = timeline_link
 
-    def stringRepresentation(self):
+    def string_representation(self):
         return (("Min: %(min_base)f -> %(min_changed)f:" +
                  " %(delta_min)s\n" +
                  "Avg: %(avg_base)f -> %(avg_changed)f:" +
@@ -375,7 +375,7 @@ class MemoryUsageResult(object):
         self.delta_max = delta_max
         self.chart_link = chart_link
 
-    def stringRepresentation(self):
+    def string_representation(self):
         return (("Mem max: %(max_base).3f -> %(max_changed).3f:" +
                  " %(delta_max)s\n" +
                  "Usage over time: %(chart_link)s")
@@ -1567,7 +1567,7 @@ def main(argv):
     for name, result in results:
         print
         print "###", name, "###"
-        print result.stringRepresentation()
+        print result.string_representation()
     return results
 
 if __name__ == "__main__":
