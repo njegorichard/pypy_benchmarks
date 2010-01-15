@@ -368,6 +368,19 @@ class ComparisonResult(object):
                  "Timeline: %(timeline_link)s")
                  % self.__dict__)
 
+class MemoryUsageResult(object):
+    def __init__(self, max_base, max_changed, delta_max, chart_link):
+        self.max_base = max_base
+        self.max_changed = max_changed
+        self.delta_max = delta_max
+        self.chart_link = chart_link
+
+    def stringRepresentation(self):
+        return (("Mem max: %(max_base).3f -> %(max_changed).3f:" +
+                 " %(delta_max)s\n" +
+                 "Usage over time: %(chart_link)s")
+                 % self.__dict__)
+
 def CompareMemoryUsage(base_usage, changed_usage, options):
     """Like CompareMultipleRuns, but for memory usage."""
     max_base, max_changed = max(base_usage), max(changed_usage)
@@ -377,11 +390,7 @@ def CompareMemoryUsage(base_usage, changed_usage, options):
                           SummarizeData(changed_usage),
                           options)
 
-    return (("Mem max: %(max_base).3f -> %(max_changed).3f:" +
-             " %(delta_max)s\n" +
-             "Usage over time: %(chart_link)s")
-             % locals())
-
+    return MemoryUsageResult(max_base, max_changed, delta_max, chart_link)
 
 ### Utility functions
 
