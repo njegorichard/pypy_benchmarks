@@ -556,13 +556,14 @@ def QuantityDelta(old, new):
         return "no change"
 
 
-def BuildEnv(env=None):
+def BuildEnv(env=None, inherit_env=[]):
     """Massage an environment variables dict for the host platform.
 
     Platforms like Win32 require certain env vars to be set.
 
     Args:
         env: environment variables dict.
+        whitelist: environment variables to inherit from parent environment.
 
     Returns:
         A copy of `env`, possibly with modifications.
@@ -570,6 +571,8 @@ def BuildEnv(env=None):
     if env == None:
         env = {}
     fixed_env = env.copy()
+    for varname in inherit_env:
+        fixed_env[varname] = os.environ[varname]
     if sys.platform == "win32":
         # Win32 requires certain environment variables be present
         for k in ("COMSPEC", "SystemRoot"):
@@ -658,7 +661,7 @@ def CompareBenchmarkData(base_data, changed_data, options):
     return CompareMultipleRuns(base_times, changed_times, options)
 
 
-def CallAndCaptureOutput(command, env=None, track_memory=False):
+def CallAndCaptureOutput(command, env=None, track_memory=False, inherit_env=[]):
     """Run the given command, capturing stdout.
 
     Args:
@@ -680,7 +683,7 @@ def CallAndCaptureOutput(command, env=None, track_memory=False):
     subproc = subprocess.Popen(LogCall(command),
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
-                               env=BuildEnv(env))
+                               env=BuildEnv(env, inherit_env))
     if track_memory:
         future = MemoryUsageFuture(subproc.pid)
     result, err = subproc.communicate()
@@ -728,7 +731,8 @@ def MeasureGeneric(python, options, bm_path, bm_env=None,
     RemovePycs()
     command = python + [bm_path, "-n", trials] + extra_args
     result, mem_usage = CallAndCaptureOutput(command, bm_env,
-                                             track_memory=options.track_memory)
+                                             track_memory=options.track_memory,
+                                             inherit_env=options.inherit_env)
     times = [float(line) for line in result.splitlines()]
     return times, mem_usage
 
@@ -767,7 +771,7 @@ def BM_PyBench(base_python, changed_python, options):
         warp = "100"
 
     PYBENCH_PATH = Relative("performance/pybench/pybench.py")
-    PYBENCH_ENV = BuildEnv({"PYTHONPATH": ""})
+    PYBENCH_ENV = BuildEnv({"PYTHONPATH": ""}, inherit_env=options.inherit_env)
 
     try:
         with contextlib.nested(open(os.devnull, "wb"),
@@ -816,7 +820,7 @@ def Measure2to3(python, options):
     FAST_TARGET = Relative("lib/2to3/lib2to3/refactor.py")
     TWO_TO_THREE_PROG = Relative("lib/2to3/2to3")
     TWO_TO_THREE_DIR = Relative("lib/2to3")
-    TWO_TO_THREE_ENV = BuildEnv({"PYTHONPATH": ""})
+    TWO_TO_THREE_ENV = BuildEnv({"PYTHONPATH": ""}, inherit_env=options.inherit_env)
 
     if options.fast:
         target = FAST_TARGET
@@ -829,7 +833,7 @@ def Measure2to3(python, options):
         # more useful error messages.
         CallAndCaptureOutput(python +
                              [TWO_TO_THREE_PROG, "-f", "all", target],
-                             env=TWO_TO_THREE_ENV)
+                             env=TWO_TO_THREE_ENV, inherit_env=options.inherit_env)
         if options.rigorous:
             trials = 5
         else:
@@ -1092,8 +1096,8 @@ def BM_Ai(*args, **kwargs):
     return SimpleBenchmark(MeasureAi, *args, **kwargs)
 
 
-def _StartupPython(command, mem_usage, track_memory):
-    startup_env = BuildEnv()
+def _StartupPython(command, mem_usage, track_memory, inherit_env):
+    startup_env = BuildEnv(inherit_env=inherit_env)
     if not track_memory:
         subprocess.check_call(command, env=startup_env)
     else:
@@ -1104,7 +1108,7 @@ def _StartupPython(command, mem_usage, track_memory):
         mem_usage.extend(future.GetMemoryUsage())
 
 
-def MeasureStartup(python, cmd_opts, num_loops, track_memory):
+def MeasureStartup(python, cmd_opts, num_loops, track_memory, inherit_env):
     times = []
     work = ""
     if track_memory:
@@ -1117,26 +1121,26 @@ def MeasureStartup(python, cmd_opts, num_loops, track_memory):
     info("Running `%s` %d times", command, num_loops * 20)
     for _ in xrange(num_loops):
         t0 = time.time()
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
-        _StartupPython(command, mem_usage, track_memory)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
+        _StartupPython(command, mem_usage, track_memory, inherit_env)
         t1 = time.time()
         times.append(t1 - t0)
     if not track_memory:
@@ -1154,9 +1158,9 @@ def BM_normal_startup(base_python, changed_python, options):
 
     opts = []
     changed_data = MeasureStartup(changed_python, opts, num_loops,
-                                  options.track_memory)
+                                  options.track_memory, options.inherit_env)
     base_data = MeasureStartup(base_python, opts, num_loops,
-                               options.track_memory)
+                               options.track_memory, options.inherit_env)
 
     return CompareBenchmarkData(base_data, changed_data, options)
 
@@ -1171,9 +1175,9 @@ def BM_startup_nosite(base_python, changed_python, options):
 
     opts = ["-S"]
     changed_data = MeasureStartup(changed_python, opts, num_loops,
-                                  options.track_memory)
+                                  options.track_memory, options.inherit_env)
     base_data = MeasureStartup(base_python, opts, num_loops,
-                               options.track_memory)
+                               options.track_memory, options.inherit_env)
 
     return CompareBenchmarkData(base_data, changed_data, options)
 
@@ -1432,7 +1436,6 @@ def ParseBenchmarksOption(benchmarks_opt):
             should_run.remove(bm)
     return should_run
 
-
 def ParsePythonArgsOption(python_args_opt):
     """Parses the --args option.
 
@@ -1451,6 +1454,10 @@ def ParsePythonArgsOption(python_args_opt):
         logging.warning("Didn't expect two or more commas in --args flag: %s",
                         python_args_opt)
     return base_args, changed_args
+
+def ParseEnvVars(option, opt_str, value, parser):
+    """Parser callback to --inherit_env var names"""
+    parser.values.inherit_env = [v for v in value.split(",") if v]
 
 
 if __name__ == "__main__":
@@ -1487,6 +1494,11 @@ if __name__ == "__main__":
                             " Otherwise we run only the positive arguments. " +
                             " Valid benchmarks are: " +
                             ", ".join(BENCH_GROUPS.keys() + all_benchmarks)))
+    parser.add_option("--inherit_env", metavar="ENVVARS", type="string", action="callback",
+                      callback=ParseEnvVars, default=[],                      
+                      help=("Comma-separated list of environment variable names"
+                            " that are inherited from the parent environment"
+                            " when running benchmarking subprocesses."))
 
     options, args = parser.parse_args()
     if len(args) != 2:
