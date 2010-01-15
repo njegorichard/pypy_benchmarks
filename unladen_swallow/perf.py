@@ -372,6 +372,13 @@ class ComparisonResult(object):
                  " %(delta_std)s\n" + self.get_timeline())
                  % self.__dict__)
 
+class ResultError(object):
+    def __init__(self, e):
+        self.msg = str(e)
+
+    def string_representation(self):
+        return self.msg
+
 class MemoryUsageResult(object):
     def __init__(self, max_base, max_changed, delta_max, chart_link):
         self.max_base = max_base
@@ -388,6 +395,16 @@ class MemoryUsageResult(object):
         return (("Mem max: %(max_base).3f -> %(max_changed).3f:" +
                  " %(delta_max)s\n" + self.get_usage_over_time())
                  % self.__dict__)
+
+class SimpleComparisonResult(object):
+    def __init__(self, base_time, changed_time, time_delta):
+        self.base_time    = base_time
+        self.changed_time = changed_time
+        self.time_delta   = time_delta
+
+    def string_representation(self):
+        return ("%(base_time)f -> %(changed_time)f: %(time_delta)s"
+                % self.__dict__)
 
 def CompareMemoryUsage(base_usage, changed_usage, options):
     """Like CompareMultipleRuns, but for memory usage."""
@@ -422,8 +439,8 @@ def SimpleBenchmark(benchmark_function, base_python, changed_python, options,
         *args, **kwargs: will be passed through to benchmark_function. 
 
     Returns:
-        String summarizing the differences between the two benchmark runs,
-        suitable for human consumption.
+        An object representing differences between the two benchmark runs.
+        Comes with string_representation method.
     """
     try:
         changed_data = benchmark_function(changed_python, options,
@@ -431,7 +448,7 @@ def SimpleBenchmark(benchmark_function, base_python, changed_python, options,
         base_data = benchmark_function(base_python, options,
                                        *args, **kwargs)
     except subprocess.CalledProcessError, e:
-        return str(e)
+        return ResultError(e)
 
     return CompareBenchmarkData(base_data, changed_data, options)
 
@@ -646,8 +663,7 @@ def CompareMultipleRuns(base_times, changed_times, options):
         # below.
         base_time, changed_time = base_times[0], changed_times[0]
         time_delta = TimeDelta(base_time, changed_time)
-        return ("%(base_time)f -> %(changed_time)f: %(time_delta)s"
-                % locals())
+        return SimpleComparisonResult(base_time, changed_time, time_delta)
 
     # Create a chart showing iteration times over time. We round the times so
     # as not to exceed the GET limit for Google's chart server.
