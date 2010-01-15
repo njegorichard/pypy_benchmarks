@@ -358,14 +358,18 @@ class ComparisonResult(object):
         self.delta_std     = delta_std
         self.timeline_link = timeline_link
 
+    def get_timeline(self):
+        if self.timeline_link is None:
+            return ""
+        return "Timeline: %(timeline_link)s"
+
     def string_representation(self):
         return (("Min: %(min_base)f -> %(min_changed)f:" +
                  " %(delta_min)s\n" +
                  "Avg: %(avg_base)f -> %(avg_changed)f:" +
                  " %(delta_avg)s\n" + self.t_msg +
                  "Stddev: %(std_base).5f -> %(std_changed).5f:" +
-                 " %(delta_std)s\n" +
-                 "Timeline: %(timeline_link)s")
+                 " %(delta_std)s\n" + self.get_timeline())
                  % self.__dict__)
 
 class MemoryUsageResult(object):
@@ -375,10 +379,14 @@ class MemoryUsageResult(object):
         self.delta_max = delta_max
         self.chart_link = chart_link
 
+    def get_usage_over_time(self):
+        if self.chart_link is None:
+            return ""
+        return "Usage over time: %(chart_link)s"
+
     def string_representation(self):
         return (("Mem max: %(max_base).3f -> %(max_changed).3f:" +
-                 " %(delta_max)s\n" +
-                 "Usage over time: %(chart_link)s")
+                 " %(delta_max)s\n" + self.get_usage_over_time())
                  % self.__dict__)
 
 def CompareMemoryUsage(base_usage, changed_usage, options):
@@ -440,6 +448,8 @@ def GetChart(base_data, changed_data, options, chart_margin=100):
     Returns:
         Google Chart API URL as a string.
     """
+    if options.no_charts:
+        return None
     # We use these to scale the graph.
     min_data = min(min(base_data), min(changed_data)) - chart_margin
     max_data = max(max(base_data), max(changed_data)) + chart_margin
@@ -1529,6 +1539,9 @@ def main(argv):
                       help=("Comma-separated list of environment variable names"
                             " that are inherited from the parent environment"
                             " when running benchmarking subprocesses."))
+    parser.add_option("--no_charts", default=False, action="store_true",
+                      help=("Don't use google charts for displaying the"
+                            " graph outcome"))
 
     options, args = parser.parse_args(argv)
     if len(args) != 2:
