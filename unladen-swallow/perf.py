@@ -339,6 +339,34 @@ class MemoryUsageFuture(threading.Thread):
         self._done.wait()
         return self._usage
 
+class ComparisonResult(object):
+    """ An object representing a result of run. Can be converted to
+    a string by calling stringRepresentation
+    """
+    def __init__(self, min_base, min_changed, delta_min, avg_base,
+                 avg_changed, delta_avg, t_msg, std_base, std_changed,
+                 delta_std, timeline_link):
+        self.min_base      = min_base
+        self.min_changed   = min_changed
+        self.delta_min     = delta_min
+        self.avg_base      = avg_base
+        self.avg_changed   = avg_changed
+        self.delta_avg     = delta_avg
+        self.t_msg         = t_msg
+        self.std_base      = std_base
+        self.std_changed   = std_changed
+        self.delta_std     = delta_std
+        self.timeline_link = timeline_link
+
+    def stringRepresentation(self):
+        return (("Min: %(min_base)f -> %(min_changed)f:" +
+                 " %(delta_min)s\n" +
+                 "Avg: %(avg_base)f -> %(avg_changed)f:" +
+                 " %(delta_avg)s\n" + self.t_msg +
+                 "Stddev: %(std_base).5f -> %(std_changed).5f:" +
+                 " %(delta_std)s\n" +
+                 "Timeline: %(timeline_link)s")
+                 % self.__dict__)
 
 def CompareMemoryUsage(base_usage, changed_usage, options):
     """Like CompareMultipleRuns, but for memory usage."""
@@ -624,15 +652,9 @@ def CompareMultipleRuns(base_times, changed_times, options):
     if significant:
         t_msg = "Significant (t=%f, a=0.95)\n" % t_score
 
-    return (("Min: %(min_base)f -> %(min_changed)f:" +
-             " %(delta_min)s\n" +
-             "Avg: %(avg_base)f -> %(avg_changed)f:" +
-             " %(delta_avg)s\n" + t_msg +
-             "Stddev: %(std_base).5f -> %(std_changed).5f:" +
-             " %(delta_std)s\n" +
-             "Timeline: %(timeline_link)s")
-             % locals())
-
+    return ComparisonResult(min_base, min_changed, delta_min, avg_base,
+                            avg_changed, delta_avg, t_msg, std_base,
+                            std_changed, delta_std, timeline_link)
 
 def CompareBenchmarkData(base_data, changed_data, options):
     """Compare performance and memory usage.
@@ -1459,8 +1481,7 @@ def ParseEnvVars(option, opt_str, value, parser):
     """Parser callback to --inherit_env var names"""
     parser.values.inherit_env = [v for v in value.split(",") if v]
 
-
-if __name__ == "__main__":
+def main(argv):
     bench_funcs = _FindAllBenchmarks()
     all_benchmarks = BENCH_GROUPS["all"]
 
@@ -1500,7 +1521,7 @@ if __name__ == "__main__":
                             " that are inherited from the parent environment"
                             " when running benchmarking subprocesses."))
 
-    options, args = parser.parse_args()
+    options, args = parser.parse_args(argv)
     if len(args) != 2:
         parser.error("incorrect number of arguments")
     base, changed = args
@@ -1537,4 +1558,8 @@ if __name__ == "__main__":
     for name, result in results:
         print
         print "###", name, "###"
-        print result
+        print result.stringRepresentation()
+    return results
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
