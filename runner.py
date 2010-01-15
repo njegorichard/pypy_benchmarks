@@ -17,5 +17,5 @@ def run_and_store(benchmarks, result_filename, pypy_c_path):
 
 if __name__ == '__main__':
     BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
-                     'rietveld', 'nbody', 'html5lib', 'ai']
+                     'rietveld', 'html5lib', 'ai']
     run_and_store(BENCHMARK_SET, sys.argv[1], sys.argv[2])
