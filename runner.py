@@ -7,16 +7,20 @@ import json
 import sys
 from unladen_swallow.perf import main
 
-def run_and_store(benchmarks, result_filename, pypy_c_path):
+def run_and_store(benchmarks, result_filename, pypy_c_path, revision=0):
     results = main(['-f', '-b', ','.join(benchmarks),
                     '--inherit_env=PATH',
                     '--no_charts', sys.executable, pypy_c_path])
     f = open(str(result_filename), "w")
-    f.write(json.dumps([(name, result.__class__.__name__, result.__dict__)
-                    for name, result in results]))
+    res = [(name, result.__class__.__name__, result.__dict__)
+           for name, result in results]
+    f.write(json.dumps({
+        'revision' : revision,
+        'results' : res,
+        }))
     f.close()
 
 if __name__ == '__main__':
     BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
                      'rietveld', 'html5lib', 'ai']
-    run_and_store(BENCHMARK_SET, sys.argv[1], sys.argv[2])
+    run_and_store(BENCHMARK_SET, sys.argv[1], sys.argv[2], int(sys.argv[3]))
