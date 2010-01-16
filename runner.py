@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""" Usage: runner.py <result filename> <path to pypy-c>
+""" Usage: runner.py <result filename> <path to pypy-c> <revnumber>
 """
 
 import os
