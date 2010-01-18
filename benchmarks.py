@@ -7,7 +7,7 @@ def relative(*args):
 
 def _register_new_bm(name, d):
     def Measure(python, options):
-        bm_path = relative('shootout', name + '.py')
+        bm_path = relative('own', name + '.py')
         return MeasureGeneric(python, options, bm_path)
     Measure.func_name = 'Measure' + name.capitalize()
 
