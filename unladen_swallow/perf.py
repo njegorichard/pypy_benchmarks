@@ -1419,15 +1419,18 @@ def BM_richards(*args, **kwargs):
 
 ### End benchmarks, begin main entry point support.
 
-def _FindAllBenchmarks():
+def _FindAllBenchmarks(namespace):
     return dict((name[3:].lower(), func)
-                for (name, func) in sorted(globals().iteritems())
+                for (name, func) in sorted(namespace.iteritems())
                 if name.startswith("BM_"))
 
+BENCH_FUNCS = _FindAllBenchmarks(globals())
 
 # Benchmark groups. The "default" group is what's run if no -b option is
-# specified. The "all" group includes every benchmark perf.py knows about.
+# specified. 
 # If you update the default group, be sure to update the module docstring, too.
+# An "all" group which includes every benchmark perf.py knows about is generated
+# automatically.
 BENCH_GROUPS = {"default": ["2to3", "django", "nbody", "slowspitfire",
                             "slowpickle", "slowunpickle", "spambayes"],
                 "startup": ["normal_startup", "startup_nosite"],
@@ -1435,12 +1438,12 @@ BENCH_GROUPS = {"default": ["2to3", "django", "nbody", "slowspitfire",
                 "threading": ["threaded_count", "iterative_count"],
                 "cpickle": ["pickle", "unpickle"],
                 "micro": ["unpack_sequence", "call_simple"],
-                "app": ["2to3", "html5lib", "spambayes"],
-                "all": _FindAllBenchmarks().keys(),
+                "app": [#"2to3",
+    "html5lib", "spambayes"]
                }
 
 
-def _ExpandBenchmarkName(bm_name):
+def _ExpandBenchmarkName(bm_name, bench_groups):
     """Recursively expand name benchmark names.
 
     Args:
@@ -1449,16 +1452,16 @@ def _ExpandBenchmarkName(bm_name):
     Yields:
         Names of actual benchmarks, with all group names fully expanded.
     """
-    expansion = BENCH_GROUPS.get(bm_name)
+    expansion = bench_groups.get(bm_name)
     if expansion:
         for name in expansion:
-            for name in _ExpandBenchmarkName(name):
+            for name in _ExpandBenchmarkName(name, bench_groups):
                 yield name
     else:
         yield bm_name
 
 
-def ParseBenchmarksOption(benchmarks_opt):
+def ParseBenchmarksOption(benchmarks_opt, bench_groups):
     """Parses and verifies the --benchmarks option.
 
     Args:
@@ -1467,7 +1470,7 @@ def ParseBenchmarksOption(benchmarks_opt):
     Returns:
         A set() of the names of the benchmarks to run.
     """
-    legal_benchmarks = BENCH_GROUPS["all"]
+    legal_benchmarks = bench_groups["all"]
     benchmarks = benchmarks_opt.split(",")
     positive_benchmarks = set(
         bm.lower() for bm in benchmarks if bm and bm[0] != "-")
@@ -1476,16 +1479,16 @@ def ParseBenchmarksOption(benchmarks_opt):
 
     should_run = set()
     if not positive_benchmarks:
-        should_run = set(_ExpandBenchmarkName("default"))
+        should_run = set(_ExpandBenchmarkName("default", bench_groups))
 
     for name in positive_benchmarks:
-        for bm in _ExpandBenchmarkName(name):
+        for bm in _ExpandBenchmarkName(name, bench_groups):
             if bm not in legal_benchmarks:
                 logging.warning("No benchmark named %s", bm)
             else:
                 should_run.add(bm)
     for bm in negative_benchmarks:
-        if bm in BENCH_GROUPS:
+        if bm in bench_groups:
             raise ValueError("Negative groups not supported: -%s" % bm)
         elif bm not in legal_benchmarks:
             logging.warning("No benchmark named %s", bm)
@@ -1516,9 +1519,10 @@ def ParseEnvVars(option, opt_str, value, parser):
     """Parser callback to --inherit_env var names"""
     parser.values.inherit_env = [v for v in value.split(",") if v]
 
-def main(argv):
-    bench_funcs = _FindAllBenchmarks()
-    all_benchmarks = BENCH_GROUPS["all"]
+def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
+    bench_groups = bench_groups.copy()
+    all_benchmarks = bench_funcs.keys()
+    bench_groups["all"] = all_benchmarks
 
     parser = optparse.OptionParser(
         usage="%prog [options] baseline_python changed_python",
@@ -1549,7 +1553,7 @@ def main(argv):
                             " benchmarks except the negative arguments. " +
                             " Otherwise we run only the positive arguments. " +
                             " Valid benchmarks are: " +
-                            ", ".join(BENCH_GROUPS.keys() + all_benchmarks)))
+                            ", ".join(bench_groups.keys() + all_benchmarks)))
     parser.add_option("--inherit_env", metavar="ENVVARS", type="string", action="callback",
                       callback=ParseEnvVars, default=[],                      
                       help=("Comma-separated list of environment variable names"
@@ -1580,7 +1584,7 @@ def main(argv):
             parser.error("--track_memory requires Windows with PyWin32 or " +
                          "Linux 2.6.16 or above")
 
-    should_run = ParseBenchmarksOption(options.benchmarks)
+    should_run = ParseBenchmarksOption(options.benchmarks, bench_groups)
 
     results = []
     for name in sorted(should_run):
