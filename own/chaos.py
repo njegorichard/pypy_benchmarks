@@ -220,7 +220,6 @@ class Chaosgame(object):
         colored = 0
         times = []
         for _ in range(n):
-            random.seed(1234)
             t1 = time.time()
             for i in xrange(5000):
                 point = self.transform_point(point)
@@ -263,7 +262,7 @@ def main(n):
             GVector(2.366800, 3.233460, 0.000000)],
             3, [0, 0, 0, 1, 1, 1])
         ]
-    c = Chaosgame(splines, 0.3)
+    c = Chaosgame(splines, 0.25)
     return c.create_image_chaos(1000, 1200, "py.ppm", n)
 
 
