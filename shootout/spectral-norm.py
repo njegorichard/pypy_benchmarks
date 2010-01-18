@@ -9,7 +9,10 @@
 
 from math            import sqrt
 from itertools       import izip
-from sys             import argv
+import time
+import util
+import itertools
+import optparse
 
 def eval_A (i, j):
     return 1.0 / ((i + j) * (i + j + 1) / 2 + i + 1)
@@ -37,22 +40,32 @@ def part_At_times_u((i,u)):
         partial_sum += eval_A (j, i) * u_j
     return partial_sum
 
-def main():
-    n = int(argv[1])
-    u = [1] * n
+DEFAULT_N = 130
 
-    for dummy in xrange (10):
-        v = eval_AtA_times_u (u)
-        u = eval_AtA_times_u (v)
+def main(n):
+    times = []
+    for i in range(n):
+        t0 = time.time()
+        u = [1] * DEFAULT_N
 
-    vBv = vv = 0
+        for dummy in xrange (10):
+            v = eval_AtA_times_u (u)
+            u = eval_AtA_times_u (v)
 
-    for ue, ve in izip (u, v):
-        vBv += ue * ve
-        vv  += ve * ve
+        vBv = vv = 0
 
-    print "%0.9f" % (sqrt(vBv/vv))
+        for ue, ve in izip (u, v):
+            vBv += ue * ve
+            vv  += ve * ve
+        tk = time.time()
+        times.append(tk - t0)
+    return times
+    
+if __name__ == "__main__":
+    parser = optparse.OptionParser(
+        usage="%prog [options]",
+        description="Test the performance of the Float benchmark")
+    util.add_standard_options_to(parser)
+    options, args = parser.parse_args()
 
-if __name__ == '__main__':
-    for i in range(int(argv[2])):
-        main()
+    util.run_benchmark(options, options.num_runs, main)

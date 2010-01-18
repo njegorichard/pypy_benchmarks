@@ -5,6 +5,10 @@
 # contributed by Sokolov Yura
 # modified by Tupteq
 
+import optparse
+import time
+import util
+
 def fannkuch(n):
     count = range(1, n+1)
     max_flips = 0
@@ -18,7 +22,7 @@ def fannkuch(n):
 
     while 1:
         if check < 30:
-            print "".join(str(i+1) for i in perm1)
+            #print "".join(str(i+1) for i in perm1)
             check += 1
 
         while r != 1:
@@ -46,10 +50,22 @@ def fannkuch(n):
         else:
             return max_flips
 
-def main(n):
-    print "Pfannkuchen(%d) = %d\n" % (n, fannkuch(n)),
+DEFAULT_ARG = 9
 
-if __name__=="__main__":
-    import sys
-    for i in range(int(sys.argv[2])):
-        main(int(sys.argv[1]))
+def main(n):
+    times = []
+    for i in range(n):
+        t0 = time.time()
+        fannkuch(DEFAULT_ARG)
+        tk = time.time()
+        times.append(tk - t0)
+    return times
+    
+if __name__ == "__main__":
+    parser = optparse.OptionParser(
+        usage="%prog [options]",
+        description="Test the performance of the Float benchmark")
+    util.add_standard_options_to(parser)
+    options, args = parser.parse_args()
+
+    util.run_benchmark(options, options.num_runs, main)
