@@ -1,8 +1,9 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from math import sin, cos, sqrt
-import sys
-
-NUMBER_OF_RUNS = int(sys.argv[1])
+import util
+import optparse
+import time
 
 class Point(object):
 
@@ -44,15 +45,24 @@ def benchmark(n):
         p.normalize()
     return maximize(points)
 
-def main():
-    if len(sys.argv) == 1:
-        n = 100000
-    else:
-        n = int(sys.argv[1])
-    for i in xrange(NUMBER_OF_RUNS):
-        o = benchmark(n)
-    print o
+POINTS = 100000
 
-if __name__ == '__main__':
-    for i in range(int(sys.argv[2])):
-        main()
+def main(arg):
+    # XXX warmup
+    
+    times = []
+    for i in xrange(arg):
+        t0 = time.time()
+        o = benchmark(POINTS)
+        tk = time.time()
+        times.append(tk - t0)
+    return times
+    
+if __name__ == "__main__":
+    parser = optparse.OptionParser(
+        usage="%prog [options]",
+        description="Test the performance of the Float benchmark")
+    util.add_standard_options_to(parser)
+    options, args = parser.parse_args()
+
+    util.run_benchmark(options, options.num_runs, main)
