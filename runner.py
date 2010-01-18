@@ -25,7 +25,8 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0):
     f.close()
 
 BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
-                 'rietveld', 'html5lib', 'ai', 'float', 'nbody_modified']
+                 'rietveld', 'html5lib', 'ai']
+BENCHMARK_SET += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
 
 class WrongBenchmark(Exception):
     pass

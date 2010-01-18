@@ -4,7 +4,10 @@
 #
 # contributed by Daniel Nanz, 2008-08-21
 
+import optparse
+import util
 import sys
+import time
 from bisect import bisect
 
 w, h = 5, 10
@@ -130,16 +133,29 @@ def solve(n, i_min, free, curr_board, pieces_left, solutions,
             return
     return
 
+SOLVE_ARG = 60
+
 def main(n):
+    times = []
+    for i in range(n):
+        t0 = time.time()
+        free = frozenset(xrange(len(board)))
+        curr_board = [-1] * len(board)
+        pieces_left = range(len(pieces))
+        solutions = []
+        solve(SOLVE_ARG, 0, free, curr_board, pieces_left, solutions)
+        #print len(solutions),  'solutions found\n'
+        #for i in (0, -1): print_board(solutions[i])
+        tk = time.time()
+        times.append(tk - t0)
+    return times
+    
+if __name__ == "__main__":
+    parser = optparse.OptionParser(
+        usage="%prog [options]",
+        description="Test the performance of the Float benchmark")
+    util.add_standard_options_to(parser)
+    options, args = parser.parse_args()
 
-    free = frozenset(xrange(len(board)))
-    curr_board = [-1] * len(board)
-    pieces_left = range(len(pieces))
-    solutions = []
-    solve(n, 0, free, curr_board, pieces_left, solutions)
-    print len(solutions),  'solutions found\n'
-    for i in (0, -1): print_board(solutions[i])
-
-for i in range(int(sys.argv[2])):
-    main(int(sys.argv[1]))
+    util.run_benchmark(options, options.num_runs, main)
 
