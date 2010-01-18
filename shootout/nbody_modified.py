@@ -6,6 +6,9 @@
 # modified by Tupteq, Fredrik Johansson, and Daniel Nanz
 
 import sys
+import util
+import optparse
+import time
 
 def combinations(l):
     result = []
@@ -106,13 +109,27 @@ def offset_momentum(ref, bodies=SYSTEM, px=0.0, py=0.0, pz=0.0):
     v[1] = py / m
     v[2] = pz / m
 
+NUMBER_OF_ITERATIONS = 20000
 
 def main(n, ref='sun'):
+    # XXX warmup
+    
+    times = []
+    for i in range(n):
+        t0 = time.time()
+        offset_momentum(BODIES[ref])
+        report_energy()
+        advance(0.01, NUMBER_OF_ITERATIONS)
+        report_energy()
+        tk = time.time()
+        times.append(tk - t0)
+    return times
 
-    offset_momentum(BODIES[ref])
-    report_energy()
-    advance(0.01, n)
-    report_energy()
+if __name__ == "__main__":
+    parser = optparse.OptionParser(
+        usage="%prog [options]",
+        description="Test the performance of the 2.5 compatible nbody benchmark")
+    util.add_standard_options_to(parser)
+    options, args = parser.parse_args()
 
-for i in range(int(sys.argv[2])):
-    main(int(sys.argv[1]))
+    util.run_benchmark(options, options.num_runs, main)
