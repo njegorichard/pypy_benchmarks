@@ -18,5 +18,5 @@ def _register_new_bm(name, d):
     d[BM.func_name] = BM
 
 for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
-             'spectral-norm', 'chaos']:
+             'spectral-norm', 'chaos', 'telco']:
     _register_new_bm(name, globals())
