@@ -612,6 +612,8 @@ def TimeDelta(old, new):
 
 
 def QuantityDelta(old, new):
+    if old == 0 or new == 0:
+        return "uncomparable"
     if new > old:
         return "%.4fx larger" % (new / old)
     elif new < old:
