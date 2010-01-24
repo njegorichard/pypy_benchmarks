@@ -8,7 +8,8 @@ import sys
 from unladen_swallow import perf
 import benchmarks
 
-def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0):
+def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
+                  options='', branch='trunk'):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
     results = perf.main(['-f', '-b', ','.join(benchmark_set),
@@ -21,6 +22,8 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0):
     f.write(json.dumps({
         'revision' : revision,
         'results' : res,
+        'options' : options,
+        'branch'  : branch,
         }))
     f.close()
 
@@ -42,12 +45,16 @@ def main(argv):
                             " Valid benchmarks are: " +
                             ", ".join(BENCHMARK_SET)))
     parser.add_option('-p', '--pypy-c', default=sys.executable,
-                      help=('pypy-c or other modified python to run against'))
+                      help='pypy-c or other modified python to run against')
     parser.add_option('-r', '--revision', default=0, action="store", type=int,
-                      help=('specify revision of pypy-c'))
+                      help='specify revision of pypy-c')
     parser.add_option('-o', '--output-filename', default="result.json",
                       action="store",
-                      help=('specify output filename to store resulting json'))
+                      help='specify output filename to store resulting json')
+    parser.add_option('--options', default='', action='store',
+                      help='a string describing picked options, no spaces')
+    parser.add_option('--branch', default='trunk', action='store',
+                      help="pypy's branch")
     options, args = parser.parse_args(argv)
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:
