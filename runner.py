@@ -9,13 +9,17 @@ from unladen_swallow import perf
 import benchmarks
 
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
-                  options='', branch='trunk'):
+                  options='', branch='trunk', args=''):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
-    results = perf.main(['-f', '-b', ','.join(benchmark_set),
-                    '--inherit_env=PATH',
-                    '--no_charts', sys.executable, pypy_c_path],
-                   funcs)
+    opts = ['-f', '-b', ','.join(benchmark_set), '--inherit_env=PATH',
+            '--no_charts']
+    if args:
+        opts += ['--args', args]
+    opts += [sys.executable, pypy_c_path]
+    import pdb
+    pdb.set_trace()
+    results = perf.main(opts, funcs)
     f = open(str(result_filename), "w")
     res = [(name, result.__class__.__name__, result.__dict__)
            for name, result in results]
@@ -55,13 +59,21 @@ def main(argv):
                       help='a string describing picked options, no spaces')
     parser.add_option('--branch', default='trunk', action='store',
                       help="pypy's branch")
+    parser.add_option("-a", "--args", default="",
+                      help=("Pass extra arguments to the python binaries."
+                            " If there is a comma in this option's value, the"
+                            " arguments before the comma (interpreted as a"
+                            " space-separated list) are passed to the baseline"
+                            " python, and the arguments after are passed to the"
+                            " changed python. If there's no comma, the same"
+                            " options are passed to both."))
     options, args = parser.parse_args(argv)
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:
         if benchmark not in BENCHMARK_SET:
             raise WrongBenchmark(benchmark)
     run_and_store(benchmarks, options.output_filename, options.pypy_c,
-                  options.revision)
+                  options.revision, args=options.args)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
