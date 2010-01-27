@@ -17,8 +17,6 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
     if args:
         opts += ['--args', args]
     opts += [sys.executable, pypy_c_path]
-    import pdb
-    pdb.set_trace()
     results = perf.main(opts, funcs)
     f = open(str(result_filename), "w")
     res = [(name, result.__class__.__name__, result.__dict__)
