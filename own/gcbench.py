@@ -191,7 +191,7 @@ def entry_point(argv):
     
     parser = optparse.OptionParser(
         usage="%prog [options]",
-        description="Test the performance of the Telco decimal benchmark")
+        description="Test the performance of the garbage collector benchmark")
     util.add_standard_options_to(parser)
     parser.add_option('--threads', default=0, action="store",
                       help="provide number of threads (default 1)")
