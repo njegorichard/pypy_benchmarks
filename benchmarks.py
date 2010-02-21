@@ -17,7 +17,7 @@ def _register_new_bm(name, bm_name, d, **opts):
 
     d[BM.func_name] = BM
 
-TWISTED = [relative('lib/Twisted-9.0.0'), relative('lib/zope.interface-3.5.3/src')]
+TWISTED = [relative('lib/twisted-trunk'), relative('lib/zope.interface-3.5.3/src')]
 
 opts = {
     'gcbench' : {'iteration_scaling' : .10},
