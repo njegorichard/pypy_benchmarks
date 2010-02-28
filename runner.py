@@ -32,7 +32,7 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
     f.close()
     if upload:
         from saveresults import save
-        if "--jit threshold" in options:
+        if "--jit threshold" in args:
             name = "pypy-c"
         else:
             name = "pypy-c-jit"
