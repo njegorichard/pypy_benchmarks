@@ -7,9 +7,11 @@ import json
 import sys
 from unladen_swallow import perf
 import benchmarks
-
+import socket
+        
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
-                  options='', branch='trunk', args=''):
+                  options='', branch='trunk', args='', upload=False,
+                  force_host=None):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
     opts = ['-f', '-b', ','.join(benchmark_set), '--inherit_env=PATH',
@@ -28,6 +30,17 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
         'branch'  : branch,
         }))
     f.close()
+    if upload:
+        from saveresults import save
+        if "--jit threshold" in options:
+            name = "pypy-c"
+        else:
+            name = "pypy-c-jit"
+        if force_host is not None:
+            host = force_host
+        else:
+            host = socket.gethostname()
+        save('pypy', revision, res, options, branch, name, "gc=hybrid", host)
 
 BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
                  'rietveld', 'html5lib', 'ai']
@@ -65,13 +78,18 @@ def main(argv):
                             " python, and the arguments after are passed to the"
                             " changed python. If there's no comma, the same"
                             " options are passed to both."))
+    parser.add_option("--upload", default=False, action="store_true",
+                      help="Upload results to speed.pypy.org")
+    parser.add_option("--force-host", default=None, action="store",
+                      help="Force the hostname")
     options, args = parser.parse_args(argv)
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:
         if benchmark not in BENCHMARK_SET:
             raise WrongBenchmark(benchmark)
     run_and_store(benchmarks, options.output_filename, options.pypy_c,
-                  options.revision, args=options.args)
+                  options.revision, args=options.args, upload=options.upload,
+                  force_host=options.force_host)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
