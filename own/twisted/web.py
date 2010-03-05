@@ -13,32 +13,14 @@ benchmark vary wildly in their results.
 
 from __future__ import division
 
-import os, sys
-# really prefer PYTHONPATH
-pp = os.environ.get('PYTHONPATH')
-if pp:
-    for ent in reversed(map(os.path.abspath, pp.split(':'))):
-        sys.path.remove(ent)
-        sys.path.insert(0, ent)
-
-from urlparse import urlparse
-
-import sys
-f = open('P', 'w')
-f.write(str(sys.path))
-f.close()
-
-from twisted.python.log import err
-from twisted.python.failure import Failure
-from twisted.internet import reactor
-from twisted.internet.protocol import Protocol, ClientFactory
+from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred
 from twisted.web.server import Site
 from twisted.web.static import Data
 from twisted.web.resource import Resource
 from twisted.web.client import ResponseDone, Agent
 
-from twisted_benchlib import Client
+from benchlib import Client, driver
 
 
 class BodyConsumer(Protocol):
@@ -74,12 +56,7 @@ class Client(Client):
 
 
 
-def report(requestCount, duration):
-    print (duration*100./requestCount)
-
-
-def main():
-    duration = 10
+def main(reactor, duration):
     concurrency = 10
 
     root = Resource()
@@ -89,14 +66,11 @@ def main():
     agent = Agent(reactor)
     client = Client(reactor, port.getHost().port, agent)
     d = client.run(concurrency, duration)
-    d.addCallbacks(report, err, callbackArgs=(duration,))
-    d.addCallback(lambda ign: reactor.stop())
-    reactor.run()
+    return d
 
 
 
 if __name__ == '__main__':
-    # cheat
     import sys
-    assert sys.argv[1:] == ['-n', '1']
-    main()
+    import web
+    driver(web.main, sys.argv)

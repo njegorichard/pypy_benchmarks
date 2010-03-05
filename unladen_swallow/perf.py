@@ -754,7 +754,7 @@ def CallAndCaptureOutput(command, env=None, track_memory=False, inherit_env=[]):
 
 
 def MeasureGeneric(python, options, bm_path, bm_env=None,
-                   extra_args=[], iteration_scaling=1):
+                   extra_args=[], iteration_scaling=1, parser=float):
     """Abstract measurement function for Unladen's bm_* scripts.
 
     Based on the values of options.fast/rigorous, will pass -n {5,50,100} to
@@ -792,7 +792,7 @@ def MeasureGeneric(python, options, bm_path, bm_env=None,
     result, mem_usage = CallAndCaptureOutput(command, bm_env,
                                              track_memory=options.track_memory,
                                              inherit_env=options.inherit_env)
-    times = [float(line) for line in result.splitlines()]
+    times = [parser(line) for line in result.splitlines()]
     return times, mem_usage
 
 
