@@ -34,6 +34,9 @@ PRINT_TEMPL = ('%(stats)s %(name)s/sec (%(count)s %(name)s '
               'in %(duration)s seconds)')
 
 def benchmark_report(acceptCount, duration, name):
+    if acceptCount < 10:
+        reactor.stop()
+        raise Exception("Run out of TCP connections!")
     print PRINT_TEMPL % {
         'stats'    : acceptCount / duration,
         'name'     : name,
