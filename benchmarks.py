@@ -41,7 +41,7 @@ opts = {
 for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
-for name in ['web', 'names', 'accepts', 'iteration', 'tcp', 'pb']:
+for name in ['web', 'names', 'iteration', 'tcp', 'pb']: # accepts
     if name == 'accepts':
         iteration_scaling = .07
     elif name == 'web':
