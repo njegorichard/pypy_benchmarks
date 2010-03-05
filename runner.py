@@ -14,7 +14,7 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
                   force_host=None):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
-    opts = ['-f', '-b', ','.join(benchmark_set), '--inherit_env=PATH',
+    opts = ['-b', ','.join(benchmark_set), '--inherit_env=PATH',
             '--no_charts']
     if args:
         opts += ['--args', args]
