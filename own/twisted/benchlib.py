@@ -4,6 +4,8 @@ from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 from twisted.python import log
 
+failure = 0
+
 class Client(object):
     def __init__(self, reactor):
         self._reactor = reactor
@@ -34,9 +36,10 @@ PRINT_TEMPL = ('%(stats)s %(name)s/sec (%(count)s %(name)s '
               'in %(duration)s seconds)')
 
 def benchmark_report(acceptCount, duration, name):
+    global failure
     if acceptCount < 10:
-        reactor.stop()
-        raise Exception("Run out of TCP connections!")
+        failure = 1
+        raise Exception("Run out of TCP connections")
     print PRINT_TEMPL % {
         'stats'    : acceptCount / duration,
         'name'     : name,
@@ -77,6 +80,7 @@ def driver(f, argv):
     d.addErrback(log.err)
     reactor.callWhenRunning(d.addBoth, lambda ign: reactor.stop())
     reactor.run()
+    sys.exit(failure)
 
 def multidriver(*f):
     jobs = iter(f)
