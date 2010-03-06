@@ -21,7 +21,7 @@ def _register_new_bm_twisted(name, bm_name, d, **opts):
     def Measure(python, options):
         def parser(line):
             number = float(line.split(" ")[0])
-            return 3000/number
+            return 100/number
         bm_path = relative('own', 'twisted', name + '.py')
         return MeasureGeneric(python, options, bm_path, parser=parser, **opts)
     Measure.func_name = 'Measure' + name.capitalize()
