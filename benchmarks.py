@@ -23,6 +23,8 @@ def _register_new_bm_twisted(name, bm_name, d, **opts):
             number = float(line.split(" ")[0])
             if name == 'tcp':
                 return 100*1024*1024/number
+            elif name == 'iteration':
+                return 10000/number
             else:
                 return 100/number
         bm_path = relative('own', 'twisted', name + '.py')
