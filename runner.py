@@ -11,11 +11,13 @@ import socket
         
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
                   options='', branch='trunk', args='', upload=False,
-                  force_host=None):
+                  force_host=None, fast=False):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
     opts = ['-b', ','.join(benchmark_set), '--inherit_env=PATH',
             '--no_charts']
+    if fast:
+        opts += ['--fast']
     if args:
         opts += ['--args', args]
     opts += [sys.executable, pypy_c_path]
@@ -82,6 +84,8 @@ def main(argv):
                       help="Upload results to speed.pypy.org")
     parser.add_option("--force-host", default=None, action="store",
                       help="Force the hostname")
+    parser.add_option("--fast", default=False, action="store_true",
+                      help="Run shorter benchmark runs")
     options, args = parser.parse_args(argv)
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:
@@ -89,7 +93,7 @@ def main(argv):
             raise WrongBenchmark(benchmark)
     run_and_store(benchmarks, options.output_filename, options.pypy_c,
                   options.revision, args=options.args, upload=options.upload,
-                  force_host=options.force_host)
+                  force_host=options.force_host, fast=options.fast)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
