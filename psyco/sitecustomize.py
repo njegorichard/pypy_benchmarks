@@ -1,0 +1,2 @@
+import psyco
+psyco.profile()
