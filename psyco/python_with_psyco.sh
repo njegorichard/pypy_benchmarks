@@ -1,2 +1,2 @@
 #!/bin/sh
-PYTHONPATH=`cd psyco; pwd` python "$@"
+PYTHONPATH=`cd psyco; pwd`:$PYTHONPATH python "$@"
