@@ -48,7 +48,7 @@ for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
 for name in ['web', 'names', 'iteration', 'tcp', 'pb']:#, 'accepts']:
     if name == 'web':
-        iteration_scaling = .12
+        iteration_scaling = .07
     else:
         iteration_scaling = .20
     _register_new_bm_twisted(name, 'twisted_' + name,
