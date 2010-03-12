@@ -38,11 +38,15 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
             name = "pypy-c"
         else:
             name = "pypy-c-jit"
+        optionsname = "gc=hybrid"
+        if "psyco.sh" in args:
+            name = "python-psyco-profile"
+            optionsname = ""
         if force_host is not None:
             host = force_host
         else:
             host = socket.gethostname()
-        save('pypy', revision, res, options, branch, name, "gc=hybrid", host)
+        save('pypy', revision, res, options, branch, name, optionsname, host)
 
 BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
                  'rietveld', 'html5lib', 'ai']
