@@ -60,7 +60,7 @@ def setup_driver(f, argv, reactor):
     options = BenchmarkOptions()
     options.parseOptions(argv[1:])
     duration = options['duration']
-    jobs = [f] * options['iterations']
+    jobs = [f] * (options['iterations'] + options['warmup'])
     d = Deferred()
     def work(res, counter):
         try:
