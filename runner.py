@@ -40,8 +40,9 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
             name = "pypy-c-jit"
         optionsname = "gc=hybrid"
         if "psyco.sh" in pypy_c_path:
-            name = "python-psyco-profile"
-            optionsname = "default"
+            name = "cpython"
+            optionsname = "psyco-profile"
+            revision = 262
         if force_host is not None:
             host = force_host
         else:
