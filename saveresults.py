@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+#######################################################
+# This script saves result data                       #
+# It expects the format of unladen swallow's perf.py  #
+#######################################################
 import urllib, urllib2
 from datetime import datetime
 
@@ -10,9 +14,7 @@ def save(project, revision, results, options, branch, interpreter,
     #Parse data
     data = {}
     current_date = datetime.today()
-    if branch == "":
-        print("ERROR: No branch defined")
-        return 1
+    if branch == "": branch = 'trunk'
         
     for b in results:
         bench_name = b[0]
@@ -27,16 +29,18 @@ def save(project, revision, results, options, branch, interpreter,
             print("ERROR: result type unknown " + b[1])
             return 1
         data = {
-            'revision_number': revision,
-            'revision_project': project,
-            'revision_branch': branch,
-            'interpreter_name': interpreter,
-            'interpreter_coptions': int_options,
-            'benchmark_name': bench_name,
+            'commitid': revision,
+            'project': project,
+            'branch': branch,
+            'executable_name': interpreter,
+            'executable_coptions': int_options,
+            'benchmark': bench_name,
             'environment': host,
             'result_value': value,
             'result_date': current_date,
         }
+        if res_type == "ComparisonResult":
+            data['std_dev'] = results['std_changed']
         if testing: testparams.append(data)
         else: send(data)
     if testing: return testparams
@@ -47,8 +51,8 @@ def send(data):
     params = urllib.urlencode(data)
     f = None
     response = "None"
-    info = str(datetime.today()) + ": Saving result for " + data['interpreter_name'] + " revision "
-    info += str(data['revision_number']) + ", benchmark " + data['benchmark_name']
+    info = str(datetime.today()) + ": Saving result for " + data['executable_name'] + " revision "
+    info += str(data['commitid']) + ", benchmark " + data['benchmark']
     print(info)
     try:
         f = urllib2.urlopen(SPEEDURL + 'result/add/', params)
@@ -62,4 +66,7 @@ def send(data):
             response = '\n  The server couldn\'t fulfill the request\n'
             response += '  Error code: ' + str(e)
         print("Server (%s) response: %s\n" % (SPEEDURL, response))
-        return 1   
+        return 1
+    print "saved correctly!\n"
+    return 0
+
