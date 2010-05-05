@@ -11,7 +11,7 @@ import socket
         
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
                   options='', branch='trunk', args='', upload=False,
-                  force_host=None, fast=False):
+                  force_host=None, fast=False, baseline=sys.executable):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
     opts = ['-b', ','.join(benchmark_set), '--inherit_env=PATH',
@@ -20,7 +20,7 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
         opts += ['--fast']
     if args:
         opts += ['--args', args]
-    opts += [sys.executable, pypy_c_path]
+    opts += [baseline, pypy_c_path]
     results = perf.main(opts, funcs)
     f = open(str(result_filename), "w")
     res = [(name, result.__class__.__name__, result.__dict__)
@@ -79,6 +79,8 @@ def main(argv):
                       help='a string describing picked options, no spaces')
     parser.add_option('--branch', default='trunk', action='store',
                       help="pypy's branch")
+    parser.add_option('--baseline', default=sys.executable, action='store',
+                      help='baseline interpreter, defaults to host one')
     parser.add_option("-a", "--args", default="",
                       help=("Pass extra arguments to the python binaries."
                             " If there is a comma in this option's value, the"
@@ -100,7 +102,8 @@ def main(argv):
             raise WrongBenchmark(benchmark)
     run_and_store(benchmarks, options.output_filename, options.pypy_c,
                   options.revision, args=options.args, upload=options.upload,
-                  force_host=options.force_host, fast=options.fast)
+                  force_host=options.force_host, fast=options.fast,
+                  baseline=options.baseline)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
