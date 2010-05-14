@@ -39,7 +39,7 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
             name = "pypy-c"
         else:
             name = "pypy-c-jit"
-        optionsname = "gc=hybrid"
+        optionsname = ""
         if "psyco.sh" in pypy_c_path:
             name = "cpython"
             optionsname = "psyco-profile"
