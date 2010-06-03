@@ -14,6 +14,7 @@ def save(project, revision, results, options, branch, interpreter,
     #Parse data
     data = {}
     current_date = datetime.today()
+    error = 0
         
     for b in results:
         bench_name = b[0]
@@ -40,7 +41,9 @@ def save(project, revision, results, options, branch, interpreter,
         if res_type == "ComparisonResult":
             data['std_dev'] = results['std_changed']
         if testing: testparams.append(data)
-        else: send(data)
+        else: error |= send(data)
+    if error:
+        raise IOError("Saving failed.  See messages above.")
     if testing: return testparams
     else: return 0
     
