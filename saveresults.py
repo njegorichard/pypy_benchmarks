@@ -65,8 +65,8 @@ def send(data):
             response += '  Reason: ' + str(e.reason)
         elif hasattr(e, 'code'):
             response = '\n  The server couldn\'t fulfill the request'
-        print("Server (%s) response: %s\n" % (SPEEDURL, response))
-        print('  Error code: ' + str(e))
+        print("Server (%s) response: %s" % (SPEEDURL, response))
+        print('  Error code: %s\n' % (e,))
         return 1
     print "saved correctly!\n"
     return 0
