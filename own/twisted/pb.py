@@ -7,7 +7,7 @@ from __future__ import division
 
 from twisted.spread.pb import PBServerFactory, PBClientFactory, Root
 
-from benchlib import Client, driver
+from benchlib import Client, driver, rotate_local_intf
 
 
 class BenchRoot(Root):
@@ -23,8 +23,9 @@ class Client(Client):
          'baz': 100,
          u'these are bytes': (1, 2, 3)}]
 
-    def __init__(self, reactor, port):
+    def __init__(self, reactor, host, port):
         super(Client, self).__init__(reactor)
+        self._host = host
         self._port = port
 
 
@@ -35,7 +36,7 @@ class Client(Client):
         client = PBClientFactory()
         d = client.getRootObject()
         d.addCallback(connected)
-        self._reactor.connectTCP('127.0.0.1', self._port, client)
+        self._reactor.connectTCP(self._host, self._port, client)
         return d
 
 
@@ -49,8 +50,9 @@ def main(reactor, duration):
     concurrency = 15
 
     server = PBServerFactory(BenchRoot())
-    port = reactor.listenTCP(0, server)
-    client = Client(reactor, port.getHost().port)
+    port = reactor.listenTCP(0, server,
+                             interface=rotate_local_intf())
+    client = Client(reactor, port.getHost().host, port.getHost().port)
     d = client.run(concurrency, duration)
     return d
 

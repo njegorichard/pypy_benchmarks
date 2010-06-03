@@ -13,7 +13,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ServerFactory, ClientCreator, Protocol
 from twisted.protocols.wire import Echo
 
-from benchlib import driver
+from benchlib import driver, rotate_local_intf
 
 
 class Counter(Protocol):
@@ -27,8 +27,9 @@ class Counter(Protocol):
 class Client(object):
     _finished = None
 
-    def __init__(self, reactor, port):
+    def __init__(self, reactor, host, port):
         self._reactor = reactor
+        self._host = host
         self._port = port
 
 
@@ -37,7 +38,7 @@ class Client(object):
         self._bytes = 'x' * chunkSize
         # Set up a connection
         cc = ClientCreator(self._reactor, Counter)
-        d = cc.connectTCP('127.0.0.1', self._port)
+        d = cc.connectTCP(self._host, self._port)
         d.addCallback(self._connected)
         return d
 
@@ -81,8 +82,10 @@ def main(reactor, duration):
 
     server = ServerFactory()
     server.protocol = Echo
-    serverPort = reactor.listenTCP(0, server)
-    client = Client(reactor, serverPort.getHost().port)
+    serverPort = reactor.listenTCP(0, server,
+                                   interface=rotate_local_intf())
+    client = Client(reactor, serverPort.getHost().host,
+                             serverPort.getHost().port)
     d = client.run(duration, chunkSize)
     return d
 

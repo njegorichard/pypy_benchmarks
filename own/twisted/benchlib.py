@@ -92,3 +92,9 @@ def multidriver(*f):
         reactor.stop()
     reactor.callWhenRunning(work)
     reactor.run()
+
+_interface = 1
+def rotate_local_intf():
+    global _interface
+    _interface = _interface % 254 + 1
+    return '127.0.0.%d' % (_interface,)
