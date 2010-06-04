@@ -55,9 +55,6 @@ def send(data):
     info = str(datetime.today()) + ": Saving result for " + data['executable_name'] + " revision "
     info += str(data['commitid']) + ", benchmark " + data['benchmark']
     print(info)
-    if not check_host_exists(SPEEDURL):
-        print "fail to contact the host of %s\n" % (SPEEDURL,)
-        return 1
     try:
         f = urllib2.urlopen(SPEEDURL + 'result/add/', params)
         response = f.read()
@@ -74,11 +71,3 @@ def send(data):
     print "saved correctly!\n"
     return 0
 
-def check_host_exists(url):
-    import urlparse, socket
-    machinename = urlparse.urlparse(url)[1]
-    try:
-        socket.gethostbyname(machinename)
-        return True
-    except socket.gaierror:
-        return False
