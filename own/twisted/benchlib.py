@@ -80,6 +80,7 @@ def driver(f, argv):
     d.addErrback(log.err)
     reactor.callWhenRunning(d.addBoth, lambda ign: reactor.stop())
     reactor.run()
+    sleep_to_purge_connexions()
     sys.exit(failure)
 
 def multidriver(*f):
@@ -92,9 +93,21 @@ def multidriver(*f):
         reactor.stop()
     reactor.callWhenRunning(work)
     reactor.run()
+    sleep_to_purge_connexions()
 
 _interface = 1
 def rotate_local_intf():
     global _interface
     _interface = _interface % 254 + 1
     return '127.0.0.%d' % (_interface,)
+
+def sleep_to_purge_connexions():
+    # For tests that do a lot of TCP connexions, we sleep a bit more than
+    # 1 minute at the end.  This makes sure that the sockets have time to
+    # get out of the TIME_WAIT state before we do anything more.
+    global _interface
+    if _interface != 1:
+        print >> sys.stderr, "sleeping 90 seconds..."
+        import time
+        time.sleep(90)
+        _interface = 1
