@@ -8,12 +8,10 @@ from datetime import datetime
 
 SPEEDURL = "http://speed.pypy.org/"
 
-def save(project, revision, results, options, branch, interpreter,
-         int_options, host, testing=False):
+def save(project, revision, results, options, interpreter, host, testing=False):
     testparams = []
     #Parse data
     data = {}
-    current_date = datetime.today()
     error = 0
         
     for b in results:
@@ -31,12 +29,10 @@ def save(project, revision, results, options, branch, interpreter,
         data = {
             'commitid': revision,
             'project': project,
-            'executable_name': interpreter,
-            'executable_coptions': int_options,
+            'executable': interpreter,
             'benchmark': bench_name,
             'environment': host,
             'result_value': value,
-            'result_date': current_date,
         }
         if res_type == "ComparisonResult":
             data['std_dev'] = results['std_changed']
@@ -52,7 +48,7 @@ def send(data):
     params = urllib.urlencode(data)
     f = None
     response = "None"
-    info = str(datetime.today()) + ": Saving result for " + data['executable_name'] + " revision "
+    info = str(datetime.today()) + ": Saving result for " + data['executable'] + " revision "
     info += str(data['commitid']) + ", benchmark " + data['benchmark']
     print(info)
     try:

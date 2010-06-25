@@ -22,12 +22,10 @@ class TestSaveresults(object):
     
     def test_good_input(self):
         '''Given correct result data, check that every result being saved has the right parameters'''
-        for resultparams in saveresults.save("pypy", 71212, self.fixture, "", "experimental", "pypy-c-jit", "gc=hybrid", 'host', True):
-            assert resultparams['project'] == "pypy"
+        for resultparams in saveresults.save("PyPy", 71212, self.fixture, "", "pypy-c-jit", 'host', True):
+            assert resultparams['project'] == "PyPy"
             assert resultparams['commitid'] == 71212
-            assert resultparams['branch'] == "experimental"
-            assert resultparams['executable_name'] == "pypy-c-jit"
-            assert resultparams['executable_coptions'] == "gc=hybrid"
+            assert resultparams['executable'] == "pypy-c-jit"
             # get dict with correct data for this benchmark
             fixturedata = []
             benchfound = False

@@ -34,22 +34,20 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
     f.close()
     if upload:
         from saveresults import save
-        project = 'pypy'
+        project = 'PyPy'
         if "--jit threshold" in args:
             name = "pypy-c"
         else:
             name = "pypy-c-jit"
-        optionsname = ""
         if "psyco.sh" in pypy_c_path:
-            name = "cpython"
-            optionsname = "psyco-profile"
-            revision = 262
+            name = "cpython psyco-profile"
+            revision = 100
             project = 'cpython'
         if force_host is not None:
             host = force_host
         else:
             host = socket.gethostname()
-        save(project, revision, res, options, branch, name, optionsname, host)
+        save(project, revision, res, options, name, host)
 
 BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
                  'rietveld', 'html5lib', 'ai']
