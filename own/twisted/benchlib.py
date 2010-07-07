@@ -86,6 +86,7 @@ def driver(f, argv):
 def multidriver(*f):
     jobs = iter(f)
     def work():
+        sleep_to_purge_connexions()
         for job in jobs:
             d = setup_driver(job, sys.argv, reactor)
             d.addCallback(lambda ignored: work())
@@ -93,7 +94,6 @@ def multidriver(*f):
         reactor.stop()
     reactor.callWhenRunning(work)
     reactor.run()
-    sleep_to_purge_connexions()
 
 _interface = 1
 def rotate_local_intf():
