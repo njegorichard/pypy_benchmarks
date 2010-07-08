@@ -11,8 +11,6 @@ effect on system-wide performance and makes consecutive runs of the
 benchmark vary wildly in their results.
 """
 
-from __future__ import division
-
 from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred
 from twisted.web.server import Site
@@ -20,7 +18,7 @@ from twisted.web.static import Data
 from twisted.web.resource import Resource
 from twisted.web.client import ResponseDone, Agent
 
-from benchlib import Client, driver, rotate_local_intf
+from benchlib import Client, driver
 
 
 class BodyConsumer(Protocol):
@@ -37,7 +35,7 @@ class BodyConsumer(Protocol):
 
 class Client(Client):
     def __init__(self, reactor, host, portNumber, agent):
-        self._requestLocation = 'http://%s:%d/' % (host, portNumber)
+        self._requestLocation = 'http://%s:%d/' % (host, portNumber,)
         self._agent = agent
         super(Client, self).__init__(reactor)
 
@@ -56,16 +54,26 @@ class Client(Client):
 
 
 
+interface = 0
 def main(reactor, duration):
+    global interface
     concurrency = 10
 
     root = Resource()
     root.putChild('', Data("Hello, world", "text/plain"))
+
+    interface += 1
+    interface %= 255
     port = reactor.listenTCP(
-        0, Site(root), backlog=128, interface=rotate_local_intf())
+        0, Site(root), backlog=128, interface='127.0.0.%d' % (interface,))
     agent = Agent(reactor)
     client = Client(reactor, port.getHost().host, port.getHost().port, agent)
     d = client.run(concurrency, duration)
+    def cleanup(passthrough):
+        d = port.stopListening()
+        d.addCallback(lambda ignored: passthrough)
+        return d
+    d.addBoth(cleanup)
     return d
 
 
