@@ -46,7 +46,7 @@ opts = {
 for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
-for name in ['web', 'names', 'iteration', 'tcp', 'pb', 'accepts']:
+for name in ['web', 'names', 'iteration', 'tcp', 'pb']:#, 'accepts']:
     iteration_scaling = 1.0
     _register_new_bm_twisted(name, 'twisted_' + name,
                      globals(), bm_env={'PYTHONPATH': ':'.join(TWISTED)},
