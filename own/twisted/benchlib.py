@@ -109,7 +109,14 @@ def sleep_to_purge_connexions():
     import time, os
     for i in range(24):
         g = os.popen('netstat -atn')
-        data = g.read()
+        # make sure we read *all* data
+        all = []
+        while True:
+            data = g.read()
+            if not data:
+                break
+            all.append(data)
+        data = "".join(all)
         g.close()
         if ('Active Internet connections' in data and
             data.count('TIME_WAIT') < 20):
