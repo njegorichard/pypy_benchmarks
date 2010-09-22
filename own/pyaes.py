@@ -222,7 +222,9 @@ class AES(object):
         for i in xrange(4):
             col = i * 4
 
-            v0, v1, v2, v3 = block[col : col+4]
+            #v0, v1, v2, v3 = block[col : col+4]
+            v0, v1, v2, v3 = (block[col], block[col + 1], block[col + 2],
+                              block[col + 3])
 
             block[col  ] = mul_by_2[v0] ^ v3 ^ v2 ^ mul_by_3[v1]
             block[col+1] = mul_by_2[v1] ^ v0 ^ v3 ^ mul_by_3[v2]
@@ -245,7 +247,9 @@ class AES(object):
         for i in xrange(4):
             col = i * 4
 
-            v0, v1, v2, v3 = block[col : col+4]
+            v0, v1, v2, v3 = (block[col], block[col + 1], block[col + 2],
+                              block[col + 3])
+            #v0, v1, v2, v3 = block[col:col+4]
 
             block[col  ] = mul_14[v0] ^ mul_9[v3] ^ mul_13[v2] ^ mul_11[v1]
             block[col+1] = mul_14[v1] ^ mul_9[v0] ^ mul_13[v3] ^ mul_11[v2]
