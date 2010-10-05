@@ -406,6 +406,14 @@ class SimpleComparisonResult(object):
         return ("%(base_time)f -> %(changed_time)f: %(time_delta)s"
                 % self.__dict__)
 
+class RawResult(object):
+    def __init__(self, base_times, changed_times):
+        self.base_times = base_times
+        self.changed_times = changed_times
+
+    def string_representation(self):
+        return "Raw results: %s %s" % (self.base_times, self.changed_times)
+
 def CompareMemoryUsage(base_usage, changed_usage, options):
     """Like CompareMultipleRuns, but for memory usage."""
     max_base, max_changed = max(base_usage), max(changed_usage)
@@ -660,6 +668,8 @@ def CompareMultipleRuns(base_times, changed_times, options):
         human consumption.
     """
     assert len(base_times) == len(changed_times)
+    if options.no_statistics:
+        return RawResult(base_times, changed_times)
     if len(base_times) == 1:
         # With only one data point, we can't do any of the interesting stats
         # below.
@@ -1564,6 +1574,8 @@ def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
     parser.add_option("--no_charts", default=False, action="store_true",
                       help=("Don't use google charts for displaying the"
                             " graph outcome"))
+    parser.add_option("--no_statistics", default=False, action="store_true",
+                      help=("Don't perform statistics - return raw data"))
 
     options, args = parser.parse_args(argv)
     if len(args) != 2:

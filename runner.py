@@ -11,7 +11,8 @@ import socket
         
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
                   options='', branch='trunk', args='', upload=False,
-                  force_host=None, fast=False, baseline=sys.executable):
+                  force_host=None, fast=False, baseline=sys.executable,
+                  full_store=False):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
     opts = ['-b', ','.join(benchmark_set), '--inherit_env=PATH',
@@ -20,6 +21,8 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
         opts += ['--fast']
     if args:
         opts += ['--args', args]
+    if full_store:
+        opts.append('--no_statistics')
     opts += [baseline, pypy_c_path]
     results = perf.main(opts, funcs)
     f = open(str(result_filename), "w")
@@ -93,6 +96,8 @@ def main(argv):
                       help="Force the hostname")
     parser.add_option("--fast", default=False, action="store_true",
                       help="Run shorter benchmark runs")
+    parser.add_option("--full-store", default=False, action="store_true",
+                      help="")
     options, args = parser.parse_args(argv)
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:
@@ -101,7 +106,7 @@ def main(argv):
     run_and_store(benchmarks, options.output_filename, options.pypy_c,
                   options.revision, args=options.args, upload=options.upload,
                   force_host=options.force_host, fast=options.fast,
-                  baseline=options.baseline)
+                  baseline=options.baseline, full_store=options.full_store)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
