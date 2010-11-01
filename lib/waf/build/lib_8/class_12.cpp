@@ -1,0 +1,24 @@
+#include "class_12.h"
+#include "class_57.h"
+#include "class_19.h"
+#include "class_87.h"
+#include "class_60.h"
+#include "class_8.h"
+#include "class_77.h"
+#include "class_26.h"
+#include "class_56.h"
+#include "class_34.h"
+#include "class_70.h"
+#include "class_16.h"
+#include "class_20.h"
+#include "class_79.h"
+#include "class_27.h"
+#include "class_39.h"
+#include <lib_5/class_1.h>
+#include <lib_4/class_94.h>
+#include <lib_4/class_8.h>
+#include <lib_5/class_45.h>
+#include <lib_3/class_68.h>
+
+class_12::class_12() {}
+class_12::~class_12() {}
