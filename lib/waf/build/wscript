@@ -17,3 +17,12 @@ def build(bld):
 			target = 'lib_%d' % i,
 			includes = '.', # include the top-level
 		)
+
+	# disables the calls to gcc to measure the subprocess performance
+	from waflib import Task
+	def run_override(self):
+		return bld.exec_command('touch %s' % self.outputs[0].abspath())
+	Task.classes['cxx'].run = run_override
+	Task.classes['cxxstlib'].run = run_override
+
+
