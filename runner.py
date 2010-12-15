@@ -71,7 +71,7 @@ def main(argv):
                             ", ".join(BENCHMARK_SET)))
     parser.add_option('-p', '--pypy-c', default=sys.executable,
                       help='pypy-c or other modified python to run against')
-    parser.add_option('-r', '--revision', default=0, action="store", type=int,
+    parser.add_option('-r', '--revision', default=0, action="store",
                       help='specify revision of pypy-c')
     parser.add_option('-o', '--output-filename', default="result.json",
                       action="store",
