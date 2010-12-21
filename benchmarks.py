@@ -42,11 +42,12 @@ TWISTED = [relative('lib/twisted-trunk'), relative('lib/zope.interface-3.5.3/src
 opts = {
     'gcbench' : {'iteration_scaling' : .10},
     'waf'     : {'iteration_scaling' : .10},
+    'bm_mako' : {'bm_env': {'PYTHONPATH': relative('lib/mako')}},
 }
 
 for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco', 'go', 'pyflate-fast',
-             'raytrace-simple', 'crypto_pyaes', 'waf']:
+             'raytrace-simple', 'crypto_pyaes', 'waf', 'bm_mako']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
 for name in ['names', 'iteration', 'tcp', 'pb']:#, 'accepts', 'web']:
     if name == 'web':
