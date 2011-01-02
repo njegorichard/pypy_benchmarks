@@ -49,11 +49,8 @@ for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco', 'go', 'pyflate-fast',
              'raytrace-simple', 'crypto_pyaes', 'waf', 'bm_mako']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
-for name in ['names', 'iteration', 'tcp', 'pb']:#, 'accepts', 'web']:
-    if name == 'web':
-        iteration_scaling = 0.35
-    else:
-        iteration_scaling = 1.0
+for name in ['names', 'iteration', 'tcp', 'pb', 'web']:#, 'accepts']:
+    iteration_scaling = 1.0
     _register_new_bm_twisted(name, 'twisted_' + name,
                      globals(), bm_env={'PYTHONPATH': ':'.join(TWISTED)},
                                  iteration_scaling=iteration_scaling)

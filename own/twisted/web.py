@@ -1,14 +1,14 @@
 
 """
-This benchmark runs a trivial Twisted Web server and client and makes as
-many requests as it can in a fixed period of time.
+This benchmark runs a trivial Twisted Web server and client and makes as many
+requests as it can in a fixed period of time.
 
-A significant problem with this benchmark is the lack of persistent
-connections in the HTTP client.  Lots of TCP connections means lots of
-overhead in the kernel that's not really what we're trying to benchmark. 
-Plus lots of sockets end up in TIME_WAIT which has a (briefly) persistent
-effect on system-wide performance and makes consecutive runs of the
-benchmark vary wildly in their results.
+A significant problem with this benchmark is the lack of persistent connections
+in the HTTP client.  Lots of TCP connections means lots of overhead in the
+kernel that's not really what we're trying to benchmark.  Plus lots of sockets
+end up in TIME_WAIT which has a (briefly) persistent effect on system-wide
+performance and makes consecutive runs of the benchmark vary wildly in their
+results.
 """
 
 from twisted.internet.protocol import Protocol
@@ -54,19 +54,30 @@ class Client(Client):
 
 
 
-interface = 0
 def main(reactor, duration):
-    global interface
+    interfaceCounter = int(reactor.seconds()) % 254 + 1
+
+    interface = '127.0.0.%d' % (interfaceCounter,)
+
     concurrency = 10
+
+    class BindLocalReactor(object):
+        def __init__(self, reactor):
+            self._reactor = reactor
+
+        def __getattr__(self, name):
+            return getattr(self._reactor, name)
+        
+        def connectTCP(self, host, port, factory, timeout=30, bindAddress=(interface, 0)):
+            return self._reactor.connectTCP(host, port, factory, timeout, bindAddress)
+
 
     root = Resource()
     root.putChild('', Data("Hello, world", "text/plain"))
 
-    interface += 1
-    interface %= 255
     port = reactor.listenTCP(
-        0, Site(root), backlog=128, interface='127.0.0.%d' % (interface,))
-    agent = Agent(reactor)
+        0, Site(root), backlog=128, interface=interface)
+    agent = Agent(BindLocalReactor(reactor))
     client = Client(reactor, port.getHost().host, port.getHost().port, agent)
     d = client.run(concurrency, duration)
     def cleanup(passthrough):
