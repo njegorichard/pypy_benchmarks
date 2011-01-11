@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys
 import json
@@ -65,5 +66,5 @@ def send(data):
     return 0
 
 if __name__ == '__main__':
-    results = json.load(sys.argv[1])['results']
+    results = json.load(open(sys.argv[1]))['results']
     save('cpython', 100, results, None, 'cpython', 'tannit', testing=False)
