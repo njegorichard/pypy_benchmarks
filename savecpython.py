@@ -65,5 +65,5 @@ def send(data):
     return 0
 
 if __name__ == '__main__':
-    results = json.load(sys.argv[1])
-    save('cpython', 100, results, None, 'cpython', 'tannit', testing=False):
+    results = json.load(sys.argv[1])['results']
+    save('cpython', 100, results, None, 'cpython', 'tannit', testing=False)
