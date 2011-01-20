@@ -1,4 +1,3 @@
-
 """
 This benchmarks runs a trivial Twisted TCP echo server and a client pumps as
 much data to it as it can in a fixed period of time.
@@ -27,10 +26,11 @@ class Counter(Protocol):
 class Client(object):
     _finished = None
 
-    def __init__(self, reactor, host, port):
+    def __init__(self, reactor, host, port, server):
         self._reactor = reactor
         self._host = host
         self._port = port
+        self._server = server
 
 
     def run(self, duration, chunkSize):
@@ -70,7 +70,7 @@ class Client(object):
 
     def stopProducing(self):
         self._client.transport.loseConnection()
-
+        self._server.stopListening()
 
     def connectionLost(self, reason):
         self._finish(reason)
@@ -85,7 +85,7 @@ def main(reactor, duration):
     serverPort = reactor.listenTCP(0, server,
                                    interface=rotate_local_intf())
     client = Client(reactor, serverPort.getHost().host,
-                             serverPort.getHost().port)
+                             serverPort.getHost().port, serverPort)
     d = client.run(duration, chunkSize)
     return d
 
