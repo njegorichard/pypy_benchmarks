@@ -676,7 +676,7 @@ if __name__ == "__main__":
     import util, optparse
     parser = optparse.OptionParser(
         usage="%prog [options]",
-        description="Test the performance of the Chaos benchmark")
+        description="Test the performance of the Pyflate benchmark")
     util.add_standard_options_to(parser)
     options, args = parser.parse_args()
 
