@@ -1,0 +1,6 @@
+Notes
+======
+
+twisted can be updated by killing lib/twisted, then running::
+
+    svn export svn://svn.twistedmatrix.com/svn/Twisted/trunk lib/twisted-trunk -q
