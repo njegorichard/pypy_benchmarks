@@ -177,6 +177,20 @@ class LoopingCall:
             d, self.deferred = self.deferred, None
             d.callback(self)
 
+    def reset(self):
+        """
+        Skip the next iteration and reset the timer.
+
+        @since: 11.1
+        """
+        assert self.running, ("Tried to reset a LoopingCall that was "
+                              "not running.")
+        if self.call is not None:
+            self.call.cancel()
+            self.call = None
+            self._expectNextCallAt = self.clock.seconds()
+            self._reschedule()
+
     def __call__(self):
         def cb(result):
             if self.running:
@@ -484,7 +498,7 @@ class Cooperator(object):
 
         @param terminationPredicateFactory: A no-argument callable which will
         be invoked at the beginning of each step and should return a
-        no-argument callable which will return False when the step should be
+        no-argument callable which will return True when the step should be
         terminated.  The default factory is time-based and allows iterators to
         run for 1/100th of a second at a time.
 

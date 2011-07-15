@@ -7,6 +7,7 @@ Tests for twisted SSL support.
 
 from twisted.trial import unittest
 from twisted.internet import protocol, reactor, interfaces, defer
+from twisted.internet.error import ConnectionDone
 from twisted.protocols import basic
 from twisted.python import util
 from twisted.python.runtime import platform
@@ -25,6 +26,12 @@ except ImportError:
         global ssl
         SSL = ssl = None
     _noSSL()
+
+try:
+    from twisted.protocols import tls as newTLS
+except ImportError:
+    # Assuming SSL exists, we're using old version in reactor (i.e. non-protocol)
+    newTLS = None
 
 certPath = util.sibpath(__file__, "server.pem")
 
@@ -397,7 +404,7 @@ class TLSTestCase(unittest.TestCase):
         before and after the startTLS.
         """
         def check(ignore):
-            self.assertEquals(
+            self.assertEqual(
                 self.serverFactory.lines,
                 UnintelligentProtocol.pretext + UnintelligentProtocol.posttext
             )
@@ -412,7 +419,7 @@ class TLSTestCase(unittest.TestCase):
         received after server startTLS should be received as raw.
         """
         def check(ignored):
-            self.assertEquals(
+            self.assertEqual(
                 self.serverFactory.lines,
                 UnintelligentProtocol.pretext
             )
@@ -428,7 +435,7 @@ class TLSTestCase(unittest.TestCase):
         Test startTLS first initiated by client.
         """
         def check(ignored):
-            self.assertEquals(
+            self.assertEqual(
                 self.clientFactory.lines,
                 UnintelligentProtocol.pretext + UnintelligentProtocol.posttext
             )
@@ -477,11 +484,14 @@ class BufferingTestCase(unittest.TestCase):
         reactor.connectSSL('127.0.0.1', port.getHost().port, client, cCTX)
 
         return clientProto.deferred.addCallback(
-            self.assertEquals, "+OK <some crap>\r\n")
+            self.assertEqual, "+OK <some crap>\r\n")
 
 
 
 class ConnectionLostTestCase(unittest.TestCase, ContextGeneratingMixin):
+    """
+    SSL connection closing tests.
+    """
 
     def testImmediateDisconnect(self):
         org = "twisted.test.test_ssl"
@@ -504,6 +514,55 @@ class ConnectionLostTestCase(unittest.TestCase, ContextGeneratingMixin):
 
         return clientProtocolFactory.connectionDisconnected.addCallback(
             lambda ignoredResult: self.serverPort.stopListening())
+
+
+    def test_bothSidesLoseConnection(self):
+        """
+        Both sides of SSL connection close connection; the connections should
+        close cleanly, and only after the underlying TCP connection has
+        disconnected.
+        """
+        class CloseAfterHandshake(protocol.Protocol):
+            def __init__(self):
+                self.done = defer.Deferred()
+
+            def connectionMade(self):
+                self.transport.write("a")
+
+            def dataReceived(self, data):
+                # If we got data, handshake is over:
+                self.transport.loseConnection()
+
+            def connectionLost(self2, reason):
+                self2.done.errback(reason)
+                del self2.done
+
+        org = "twisted.test.test_ssl"
+        self.setupServerAndClient(
+            (org, org + ", client"), {},
+            (org, org + ", server"), {})
+
+        serverProtocol = CloseAfterHandshake()
+        serverProtocolFactory = protocol.ServerFactory()
+        serverProtocolFactory.protocol = lambda: serverProtocol
+        serverPort = reactor.listenSSL(0,
+            serverProtocolFactory, self.serverCtxFactory)
+        self.addCleanup(serverPort.stopListening)
+
+        clientProtocol = CloseAfterHandshake()
+        clientProtocolFactory = protocol.ClientFactory()
+        clientProtocolFactory.protocol = lambda: clientProtocol
+        clientConnector = reactor.connectSSL('127.0.0.1',
+            serverPort.getHost().port, clientProtocolFactory, self.clientCtxFactory)
+
+        def checkResult(failure):
+            failure.trap(ConnectionDone)
+        return defer.gatherResults(
+            [clientProtocol.done.addErrback(checkResult),
+             serverProtocol.done.addErrback(checkResult)])
+
+    if newTLS is None:
+        test_bothSidesLoseConnection.skip = "Old SSL code doesn't always close cleanly."
 
 
     def testFailedVerify(self):

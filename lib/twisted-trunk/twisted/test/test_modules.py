@@ -18,62 +18,90 @@ from twisted.python import modules
 from twisted.python.filepath import FilePath
 from twisted.python.reflect import namedAny
 
+from twisted.python.test.modules_helpers import TwistedModulesTestCase
 from twisted.test.test_paths import zipit
 
 
 
-class PySpaceTestCase(TestCase):
+class BasicTests(TwistedModulesTestCase):
 
-    def findByIteration(self, modname, where=modules, importPackages=False):
+    def test_namespacedPackages(self):
         """
-        You don't ever actually want to do this, so it's not in the public API, but
-        sometimes we want to compare the result of an iterative call with a
-        lookup call and make sure they're the same for test purposes.
+        Duplicate packages are not yielded when iterating over namespace
+        packages.
         """
-        for modinfo in where.walkModules(importPackages=importPackages):
-            if modinfo.name == modname:
-                return modinfo
-        self.fail("Unable to find module %r through iteration." % (modname,))
+        # Force pkgutil to be loaded already, since the probe package being
+        # created depends on it, and the replaceSysPath call below will make
+        # pretty much everything unimportable.
+        __import__('pkgutil')
 
+        namespaceBoilerplate = (
+            'import pkgutil; '
+            '__path__ = pkgutil.extend_path(__path__, __name__)')
 
-    def replaceSysPath(self, sysPath):
-        """
-        Replace sys.path, for the duration of the test, with the given value.
-        """
-        originalSysPath = sys.path[:]
-        def cleanUpSysPath():
-            sys.path[:] = originalSysPath
-        self.addCleanup(cleanUpSysPath)
-        sys.path[:] = sysPath
+        # Create two temporary directories with packages:
+        #
+        #   entry:
+        #       test_package/
+        #           __init__.py
+        #           nested_package/
+        #               __init__.py
+        #               module.py
+        #
+        #   anotherEntry:
+        #       test_package/
+        #           __init__.py
+        #           nested_package/
+        #               __init__.py
+        #               module2.py
+        #
+        # test_package and test_package.nested_package are namespace packages,
+        # and when both of these are in sys.path, test_package.nested_package
+        # should become a virtual package containing both "module" and
+        # "module2"
 
+        entry = self.pathEntryWithOnePackage()
+        testPackagePath = entry.child('test_package')
+        testPackagePath.child('__init__.py').setContent(namespaceBoilerplate)
 
-    def replaceSysModules(self, sysModules):
-        """
-        Replace sys.modules, for the duration of the test, with the given value.
-        """
-        originalSysModules = sys.modules.copy()
-        def cleanUpSysModules():
-            sys.modules.clear()
-            sys.modules.update(originalSysModules)
-        self.addCleanup(cleanUpSysModules)
-        sys.modules.clear()
-        sys.modules.update(sysModules)
+        nestedEntry = testPackagePath.child('nested_package')
+        nestedEntry.makedirs()
+        nestedEntry.child('__init__.py').setContent(namespaceBoilerplate)
+        nestedEntry.child('module.py').setContent('')
 
+        anotherEntry = self.pathEntryWithOnePackage()
+        anotherPackagePath = anotherEntry.child('test_package')
+        anotherPackagePath.child('__init__.py').setContent(namespaceBoilerplate)
 
-    def pathEntryWithOnePackage(self, pkgname="test_package"):
-        """
-        Generate a L{FilePath} with one package, named C{pkgname}, on it, and
-        return the L{FilePath} of the path entry.
-        """
-        entry = FilePath(self.mktemp())
-        pkg = entry.child("test_package")
-        pkg.makedirs()
-        pkg.child("__init__.py").setContent("")
-        return entry
+        anotherNestedEntry = anotherPackagePath.child('nested_package')
+        anotherNestedEntry.makedirs()
+        anotherNestedEntry.child('__init__.py').setContent(namespaceBoilerplate)
+        anotherNestedEntry.child('module2.py').setContent('')
 
+        self.replaceSysPath([entry.path, anotherEntry.path])
 
+        module = modules.getModule('test_package')
 
-class BasicTests(PySpaceTestCase):
+        # We have to use importPackages=True in order to resolve the namespace
+        # packages, so we remove the imported packages from sys.modules after
+        # walking
+        try:
+            walkedNames = [
+                mod.name for mod in module.walkModules(importPackages=True)]
+        finally:
+            for module in sys.modules.keys():
+                if module.startswith('test_package'):
+                    del sys.modules[module]
+
+        expected = [
+            'test_package',
+            'test_package.nested_package',
+            'test_package.nested_package.module',
+            'test_package.nested_package.module2',
+            ]
+
+        self.assertEqual(walkedNames, expected)
+
 
     def test_unimportablePackageGetItem(self):
         """
@@ -88,8 +116,8 @@ class BasicTests(PySpaceTestCase):
                                   importerCache={},
                                   sysPathHooks={},
                                   moduleDict={'test_package': None})
-        self.assertEquals(shouldNotLoad, [])
-        self.assertEquals(path['test_package'].isLoaded(), False)
+        self.assertEqual(shouldNotLoad, [])
+        self.assertEqual(path['test_package'].isLoaded(), False)
 
 
     def test_unimportablePackageWalkModules(self):
@@ -104,9 +132,9 @@ class BasicTests(PySpaceTestCase):
         self.replaceSysModules({"test_package": None})
 
         walked = list(modules.walkModules())
-        self.assertEquals([m.name for m in walked],
+        self.assertEqual([m.name for m in walked],
                           ["test_package"])
-        self.assertEquals(walked[0].isLoaded(), False)
+        self.assertEqual(walked[0].isLoaded(), False)
 
 
     def test_nonexistentPaths(self):
@@ -127,8 +155,8 @@ class BasicTests(PySpaceTestCase):
         sys.path.append(nonexistentPath.path)
         afterModules = list(modules.walkModules())
 
-        self.assertEquals(beforeModules, expected)
-        self.assertEquals(afterModules, expected)
+        self.assertEqual(beforeModules, expected)
+        self.assertEqual(afterModules, expected)
 
 
     def test_nonDirectoryPaths(self):
@@ -148,7 +176,7 @@ class BasicTests(PySpaceTestCase):
         sys.path.append(nonDirectoryPath.path)
         afterModules = list(modules.walkModules())
 
-        self.assertEquals(beforeModules, afterModules)
+        self.assertEqual(beforeModules, afterModules)
 
 
     def test_twistedShowsUp(self):
@@ -157,7 +185,7 @@ class BasicTests(PySpaceTestCase):
         Twisted shows up, and that the module thusly obtained is the same as
         the module that we find when we look for it explicitly by name.
         """
-        self.assertEquals(modules.getModule('twisted'),
+        self.assertEqual(modules.getModule('twisted'),
                           self.findByIteration("twisted"))
 
 
@@ -166,7 +194,7 @@ class BasicTests(PySpaceTestCase):
         Verify that the walkModules APIs will give us back subpackages, not just
         subpackages.
         """
-        self.assertEquals(
+        self.assertEqual(
             modules.getModule('twisted.python'),
             self.findByIteration("twisted.python",
                                  where=modules.getModule('twisted')))
@@ -240,9 +268,9 @@ class BasicTests(PySpaceTestCase):
         mypath.child("abcd.py").setContent('\n')
         compileall.compile_dir(mypath.path, quiet=True)
         # sanity check
-        self.assertEquals(len(mypath.children()), 2)
+        self.assertEqual(len(mypath.children()), 2)
         pp._smartPath = _evilSmartPath
-        self.assertEquals(pp['abcd'].filePath,
+        self.assertEqual(pp['abcd'].filePath,
                           mypath.child('abcd.py'))
 
 
@@ -258,19 +286,18 @@ class BasicTests(PySpaceTestCase):
         subpath.createDirectory()
         subpath.child("__init__.py").setContent('del __path__\n')
         sys.path.append(mypath.path)
-        import abcd
+        __import__("abcd")
         try:
             l = list(pp.walkModules())
-            self.assertEquals(len(l), 1)
-            self.assertEquals(l[0].name, 'abcd')
+            self.assertEqual(len(l), 1)
+            self.assertEqual(l[0].name, 'abcd')
         finally:
-            del abcd
             del sys.modules['abcd']
             sys.path.remove(mypath.path)
 
 
 
-class PathModificationTest(PySpaceTestCase):
+class PathModificationTest(TwistedModulesTestCase):
     """
     These tests share setup/cleanup behavior of creating a dummy package and
     stuffing some code in it.
@@ -309,11 +336,11 @@ class PathModificationTest(PySpaceTestCase):
         # Cut here
         self._setupSysPath()
         modinfo = modules.getModule(self.packageName)
-        self.assertEquals(
+        self.assertEqual(
             self.findByIteration(self.packageName+".foozle", modinfo,
                                  importPackages=doImport),
             modinfo['foozle'])
-        self.assertEquals(modinfo['foozle'].load().x, 123)
+        self.assertEqual(modinfo['foozle'].load().x, 123)
 
 
     def test_underUnderPathAlreadyImported(self):
@@ -339,7 +366,7 @@ class PathModificationTest(PySpaceTestCase):
         nfni = [modinfo.name.split(".")[-1] for modinfo in
                 pkginfo.iterModules()]
         nfni.sort()
-        self.failUnlessEqual(nfni, ['a', 'b', 'c__init__'])
+        self.assertEqual(nfni, ['a', 'b', 'c__init__'])
 
 
     def test_listingModules(self):
@@ -428,7 +455,7 @@ class PythonPathTestCase(TestCase):
         space = modules.PythonPath(
             syspath, sysmodules, syshooks, syscache, sysloader)
         entries = list(space.iterEntries())
-        self.assertEquals(len(entries), 1)
+        self.assertEqual(len(entries), 1)
         self.assertRaises(KeyError, lambda: entries[0]['module'])
 
 
@@ -441,11 +468,11 @@ class PythonPathTestCase(TestCase):
         space = modules.PythonPath([], sys.modules, [], {})
         thisModule = space[__name__]
         warnings = self.flushWarnings([self.test_inconsistentImporterCache])
-        self.assertEquals(warnings[0]['category'], UserWarning)
-        self.assertEquals(
+        self.assertEqual(warnings[0]['category'], UserWarning)
+        self.assertEqual(
             warnings[0]['message'],
             FilePath(twisted.__file__).parent().dirname() +
             " (for module " + __name__ + ") not in path importer cache "
             "(PEP 302 violation - check your local configuration).")
-        self.assertEquals(len(warnings), 1)
-        self.assertEquals(thisModule.name, __name__)
+        self.assertEqual(len(warnings), 1)
+        self.assertEqual(thisModule.name, __name__)

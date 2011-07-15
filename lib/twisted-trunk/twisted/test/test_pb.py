@@ -11,7 +11,7 @@ only specific tests for old API.
 # issue1195 TODOs: replace pump.pump() with something involving Deferreds.
 # Clean up warning suppression.
 
-import sys, os, time, gc
+import sys, os, time, gc, weakref
 
 from cStringIO import StringIO
 from zope.interface import implements, Interface
@@ -23,6 +23,7 @@ from twisted.internet import protocol, main, reactor
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.defer import Deferred, gatherResults, succeed
 from twisted.protocols.policies import WrappingFactory
+from twisted.protocols import loopback
 from twisted.python import failure, log
 from twisted.cred.error import UnauthorizedLogin, UnhandledCredentials
 from twisted.cred import portal, checkers, credentials
@@ -66,16 +67,28 @@ class IOPump:
         self.clientIO = clientIO
         self.serverIO = serverIO
 
+
     def flush(self):
         """
-        Pump until there is no more input or output. This does not run any
-        timers, so don't use it with any code that calls reactor.callLater.
+        Pump until there is no more input or output or until L{stop} is called.
+        This does not run any timers, so don't use it with any code that calls
+        reactor.callLater.
         """
         # failsafe timeout
+        self._stop = False
         timeout = time.time() + 5
-        while self.pump():
+        while not self._stop and self.pump():
             if time.time() > timeout:
                 return
+
+
+    def stop(self):
+        """
+        Stop a running L{flush} operation, even if data remains to be
+        transferred.
+        """
+        self._stop = True
+
 
     def pump(self):
         """
@@ -103,13 +116,19 @@ class IOPump:
             return 0
 
 
-def connectedServerAndClient():
+
+def connectedServerAndClient(realm=None):
     """
-    Returns a 3-tuple: (client, server, pump).
+    Connect a client and server L{Broker} together with an L{IOPump}
+
+    @param realm: realm to use, defaulting to a L{DummyRealm}
+
+    @returns: a 3-tuple (client, server, pump).
     """
+    realm = realm or DummyRealm()
     clientBroker = pb.Broker()
     checker = checkers.InMemoryUsernamePasswordDatabaseDontUse(guest='guest')
-    factory = pb.PBServerFactory(portal.Portal(DummyRealm(), [checker]))
+    factory = pb.PBServerFactory(portal.Portal(realm, [checker]))
     serverBroker = factory.buildProtocol(('127.0.0.1',))
 
     clientTransport = StringIO()
@@ -390,7 +409,7 @@ class NewStyleTestCase(unittest.TestCase):
         d = self.ref.callRemote("echo", orig)
         def cb(res):
             self.failUnless(isinstance(res, NewStyleCopy))
-            self.failUnlessEqual(res.s, "value")
+            self.assertEqual(res.s, "value")
             self.failIf(res is orig) # no cheating :)
         d.addCallback(cb)
         return d
@@ -400,15 +419,15 @@ class NewStyleTestCase(unittest.TestCase):
         Send a new style object and check the number of allocations.
         """
         orig = NewStyleCopy2()
-        self.failUnlessEqual(NewStyleCopy2.allocated, 1)
-        self.failUnlessEqual(NewStyleCopy2.initialized, 1)
+        self.assertEqual(NewStyleCopy2.allocated, 1)
+        self.assertEqual(NewStyleCopy2.initialized, 1)
         d = self.ref.callRemote("echo", orig)
         def cb(res):
             # receiving the response creates a third one on the way back
             self.failUnless(isinstance(res, NewStyleCopy2))
-            self.failUnlessEqual(res.value, 2)
-            self.failUnlessEqual(NewStyleCopy2.allocated, 3)
-            self.failUnlessEqual(NewStyleCopy2.initialized, 1)
+            self.assertEqual(res.value, 2)
+            self.assertEqual(NewStyleCopy2.allocated, 3)
+            self.assertEqual(NewStyleCopy2.initialized, 1)
             self.failIf(res is orig) # no cheating :)
         # sending the object creates a second one on the far side
         d.addCallback(cb)
@@ -480,14 +499,25 @@ class NewStyleCachedTestCase(unittest.TestCase):
 
     def test_newStyleCache(self):
         """
-        Get the object from the cache, and checks its properties.
+        A new-style cacheable object can be retrieved and re-retrieved over a
+        single connection.  The value of an attribute of the cacheable can be
+        accessed on the receiving side.
         """
         d = self.ref.callRemote("giveMeCache", self.orig)
-        def cb(res):
-            self.failUnless(isinstance(res, NewStyleCacheCopy))
-            self.failUnlessEqual(res.s, "value")
-            self.failIf(res is self.orig) # no cheating :)
-        d.addCallback(cb)
+        def cb(res, again):
+            self.assertIsInstance(res, NewStyleCacheCopy)
+            self.assertEqual("value", res.s)
+            # no cheating :)
+            self.assertNotIdentical(self.orig, res)
+
+            if again:
+                # Save a reference so it stays alive for the rest of this test
+                self.res = res
+                # And ask for it again to exercise the special re-jelly logic in
+                # Cacheable.
+                return self.ref.callRemote("giveMeCache", self.orig)
+        d.addCallback(cb, True)
+        d.addCallback(cb, False)
         return d
 
 
@@ -536,7 +566,7 @@ class BrokerTestCase(unittest.TestCase):
         self.assertIdentical(x.caught, z, "X should have caught Z")
 
         # make sure references to remote methods are equals
-        self.assertEquals(y.remoteMethod('throw'), y.remoteMethod('throw'))
+        self.assertEqual(y.remoteMethod('throw'), y.remoteMethod('throw'))
 
     def test_result(self):
         c, s, pump = connectedServerAndClient()
@@ -553,7 +583,7 @@ class BrokerTestCase(unittest.TestCase):
             # Send response.
             pump.pump()
             # Shouldn't require any more pumping than that...
-            self.assertEquals(self.thunkResult, self.expectedThunkResult,
+            self.assertEqual(self.thunkResult, self.expectedThunkResult,
                               "result wasn't received.")
 
     def refcountResult(self, result):
@@ -573,7 +603,7 @@ class BrokerTestCase(unittest.TestCase):
             pump.pump()
         expected = (pb.MAX_BROKER_REFS - 1)
         self.assertTrue(s.transport.closed, "transport was not closed")
-        self.assertEquals(len(l), expected,
+        self.assertEqual(len(l), expected,
                           "expected %s got %s" % (expected, len(l)))
 
     def test_copy(self):
@@ -585,9 +615,9 @@ class BrokerTestCase(unittest.TestCase):
             ).addCallbacks(self.thunkResultGood, self.thunkErrorBad)
         pump.pump()
         pump.pump()
-        self.assertEquals(self.thunkResult.x, 1)
-        self.assertEquals(self.thunkResult.y['Hello'], 'World')
-        self.assertEquals(self.thunkResult.z[0], 'test')
+        self.assertEqual(self.thunkResult.x, 1)
+        self.assertEqual(self.thunkResult.y['Hello'], 'World')
+        self.assertEqual(self.thunkResult.z[0], 'test')
 
     def test_observe(self):
         c, s, pump = connectedServerAndClient()
@@ -607,7 +637,7 @@ class BrokerTestCase(unittest.TestCase):
         pump.pump()
         pump.pump()
         self.assertNotIdentical(b.obj, None, "didn't notify")
-        self.assertEquals(b.obj, 1, 'notified too much')
+        self.assertEqual(b.obj, 1, 'notified too much')
 
     def test_defer(self):
         c, s, pump = connectedServerAndClient()
@@ -620,9 +650,9 @@ class BrokerTestCase(unittest.TestCase):
         pump.pump(); pump.pump()
         self.assertFalse(d.run, "Deferred method run too early.")
         d.d.callback(5)
-        self.assertEquals(d.run, 5, "Deferred method run too late.")
+        self.assertEqual(d.run, 5, "Deferred method run too late.")
         pump.pump(); pump.pump()
-        self.assertEquals(results[0], 6, "Incorrect result.")
+        self.assertEqual(results[0], 6, "Incorrect result.")
 
 
     def test_refcount(self):
@@ -671,14 +701,14 @@ class BrokerTestCase(unittest.TestCase):
         o3.callRemote("getCache").addCallback(complex.append)
         pump.flush()
         # `worst things first'
-        self.assertEquals(complex[0].x, 1)
-        self.assertEquals(complex[0].y, 2)
-        self.assertEquals(complex[0].foo, 3)
+        self.assertEqual(complex[0].x, 1)
+        self.assertEqual(complex[0].y, 2)
+        self.assertEqual(complex[0].foo, 3)
 
         vcc.setFoo4()
         pump.flush()
-        self.assertEquals(complex[0].foo, 4)
-        self.assertEquals(len(coll), 2)
+        self.assertEqual(complex[0].foo, 4)
+        self.assertEqual(len(coll), 2)
         cp = coll[0][0]
         self.assertIdentical(cp.checkMethod().im_self, cp,
                              "potential refcounting issue")
@@ -690,7 +720,7 @@ class BrokerTestCase(unittest.TestCase):
         # The objects were the same (testing lcache identity)
         self.assertTrue(col2[0])
         # test equality of references to methods
-        self.assertEquals(o2.remoteMethod("getCache"),
+        self.assertEqual(o2.remoteMethod("getCache"),
                           o2.remoteMethod("getCache"))
 
         # now, refcounting (similiar to testRefCount)
@@ -736,11 +766,11 @@ class BrokerTestCase(unittest.TestCase):
         bar.callRemote('getPub').addCallbacks(accum.append, self.thunkErrorBad)
         pump.flush()
         obj = accum.pop()
-        self.assertEquals(obj.activateCalled, 1)
-        self.assertEquals(obj.isActivated, 1)
-        self.assertEquals(obj.yayIGotPublished, 1)
+        self.assertEqual(obj.activateCalled, 1)
+        self.assertEqual(obj.isActivated, 1)
+        self.assertEqual(obj.yayIGotPublished, 1)
         # timestamp's dirty, we don't have a cache file
-        self.assertEquals(obj._wasCleanWhenLoaded, 0)
+        self.assertEqual(obj._wasCleanWhenLoaded, 0)
         c, s, pump = connectedServerAndClient()
         s.setNameForLocal("foo", foo)
         bar = c.remoteForName("foo")
@@ -748,7 +778,7 @@ class BrokerTestCase(unittest.TestCase):
         pump.flush()
         obj = accum.pop()
         # timestamp's clean, our cache file is up-to-date
-        self.assertEquals(obj._wasCleanWhenLoaded, 1)
+        self.assertEqual(obj._wasCleanWhenLoaded, 1)
 
     def gotCopy(self, val):
         self.thunkResult = val.id
@@ -765,7 +795,7 @@ class BrokerTestCase(unittest.TestCase):
         pump.pump()
         pump.pump()
         pump.pump()
-        self.assertEquals(self.thunkResult, ID,
+        self.assertEqual(self.thunkResult, ID,
             "ID not correct on factory object %s" % (self.thunkResult,))
 
 
@@ -831,11 +861,11 @@ class PagingTestCase(unittest.TestCase):
         util.getAllPages(x, "getPages").addCallback(l.append)
         while not l:
             pump.pump()
-        self.assertEquals(''.join(l[0]), bigString,
+        self.assertEqual(''.join(l[0]), bigString,
                           "Pages received not equal to pages sent!")
-        self.assertEquals(callbackArgs, ('hello',),
+        self.assertEqual(callbackArgs, ('hello',),
                           "Completed callback not invoked")
-        self.assertEquals(callbackKeyword, {'value': 10},
+        self.assertEqual(callbackKeyword, {'value': 10},
                           "Completed callback not invoked")
 
 
@@ -850,7 +880,7 @@ class PagingTestCase(unittest.TestCase):
         util.getAllPages(x, "getPages").addCallback(l.append)
         while not l:
             pump.pump()
-        self.assertEquals(''.join(l[0]), bigString,
+        self.assertEqual(''.join(l[0]), bigString,
                           "Pages received not equal to pages sent!")
 
 
@@ -873,7 +903,7 @@ class PagingTestCase(unittest.TestCase):
             ttl -= 1
         if not ttl:
             self.fail('getAllPages timed out')
-        self.assertEquals(''.join(l[0]), '',
+        self.assertEqual(''.join(l[0]), '',
                           "Pages received not equal to pages sent!")
 
 
@@ -891,13 +921,13 @@ class PagingTestCase(unittest.TestCase):
         util.getAllPages(x, "getPages").addCallback(l.append)
         while not l:
             pump.pump()
-        self.assertEquals(''.join(l[0]), bigString,
+        self.assertEqual(''.join(l[0]), bigString,
                           "Pages received not equal to pages sent!")
-        self.assertEquals(callbackArgs, ('frodo',),
+        self.assertEqual(callbackArgs, ('frodo',),
                           "Completed callback not invoked")
-        self.assertEquals(callbackKeyword, {'value': 9},
+        self.assertEqual(callbackKeyword, {'value': 9},
                           "Completed callback not invoked")
-        self.assertEquals(pagerizer.pager.chunks, [])
+        self.assertEqual(pagerizer.pager.chunks, [])
 
 
     def test_filePagingWithoutCallback(self):
@@ -912,9 +942,9 @@ class PagingTestCase(unittest.TestCase):
         util.getAllPages(x, "getPages").addCallback(l.append)
         while not l:
             pump.pump()
-        self.assertEquals(''.join(l[0]), bigString,
+        self.assertEqual(''.join(l[0]), bigString,
                           "Pages received not equal to pages sent!")
-        self.assertEquals(pagerizer.pager.chunks, [])
+        self.assertEqual(pagerizer.pager.chunks, [])
 
 
 
@@ -957,7 +987,7 @@ class DisconnectionTestCase(unittest.TestCase):
         """
         Called on RemoteReference disconnect.
         """
-        self.assertEquals(o, self.remoteObject)
+        self.assertEqual(o, self.remoteObject)
         self.objectCallback = 1
 
     def test_badSerialization(self):
@@ -968,7 +998,7 @@ class DisconnectionTestCase(unittest.TestCase):
         l = []
         g.callRemote("setBadCopy", BadCopyable()).addErrback(l.append)
         pump.flush()
-        self.assertEquals(len(l), 1)
+        self.assertEqual(len(l), 1)
 
     def test_disconnection(self):
         c, s, pump = connectedServerAndClient()
@@ -1114,6 +1144,74 @@ class MyView(pb.Viewable):
 
     def view_check(self, user):
         return isinstance(user, MyPerspective)
+
+
+
+class LeakyRealm(TestRealm):
+    """
+    A realm which hangs onto a reference to the mind object in its logout
+    function.
+    """
+    def __init__(self, mindEater):
+        """
+        Create a L{LeakyRealm}.
+
+        @param mindEater: a callable that will be called with the C{mind}
+        object when it is available
+        """
+        self._mindEater = mindEater
+
+
+    def requestAvatar(self, avatarId, mind, interface):
+        self._mindEater(mind)
+        persp = self.perspectiveFactory(avatarId)
+        return (pb.IPerspective, persp, lambda : (mind, persp.logout()))
+
+
+
+class NewCredLeakTests(unittest.TestCase):
+    """
+    Tests to try to trigger memory leaks.
+    """
+    def test_logoutLeak(self):
+        """
+        The server does not leak a reference when the client disconnects
+        suddenly, even if the cred logout function forms a reference cycle with
+        the perspective.
+        """
+        # keep a weak reference to the mind object, which we can verify later
+        # evaluates to None, thereby ensuring the reference leak is fixed.
+        self.mindRef = None
+        def setMindRef(mind):
+            self.mindRef = weakref.ref(mind)
+
+        clientBroker, serverBroker, pump = connectedServerAndClient(
+                LeakyRealm(setMindRef))
+
+        # log in from the client
+        connectionBroken = []
+        root = clientBroker.remoteForName("root")
+        d = root.callRemote("login", 'guest')
+        def cbResponse((challenge, challenger)):
+            mind = SimpleRemote()
+            return challenger.callRemote("respond",
+                    pb.respond(challenge, 'guest'), mind)
+        d.addCallback(cbResponse)
+        def connectionLost(_):
+            pump.stop() # don't try to pump data anymore - it won't work
+            connectionBroken.append(1)
+            serverBroker.connectionLost(failure.Failure(RuntimeError("boom")))
+        d.addCallback(connectionLost)
+
+        # flush out the response and connectionLost
+        pump.flush()
+        self.assertEqual(connectionBroken, [1])
+
+        # and check for lingering references - requestAvatar sets mindRef
+        # to a weakref to the mind; this object should be gc'd, and thus
+        # the ref should return None
+        gc.collect()
+        self.assertEqual(self.mindRef(), None)
 
 
 
@@ -1402,7 +1500,7 @@ class NewCredTestCase(unittest.TestCase):
 
         def cleanup(ignore):
             errors = self.flushLoggedErrors(UnauthorizedLogin)
-            self.assertEquals(len(errors), 2)
+            self.assertEqual(len(errors), 2)
             return self._disconnect(None, factory)
         d.addCallback(cleanup)
 
@@ -1447,7 +1545,7 @@ class NewCredTestCase(unittest.TestCase):
 
         def cleanup(ignore):
             errors = self.flushLoggedErrors(UnhandledCredentials)
-            self.assertEquals(len(errors), 1)
+            self.assertEqual(len(errors), 1)
             return self._disconnect(None, factory)
         d.addCallback(cleanup)
 
@@ -1580,7 +1678,7 @@ class NSPTestCase(unittest.TestCase):
                           "BRAINS!")
         reactor.connectTCP('127.0.0.1', self.portno, factory)
         d.addCallback(lambda p: p.callRemote('ANYTHING', 'here', bar='baz'))
-        d.addCallback(self.assertEquals,
+        d.addCallback(self.assertEqual,
                       ('ANYTHING', ('here',), {'bar': 'baz'}))
         def cleanup(ignored):
             factory.disconnect()
@@ -1651,7 +1749,7 @@ class SpreadUtilTestCase(unittest.TestCase):
         the result.
         """
         o = LocalRemoteTest()
-        self.assertEquals(o.callRemote("add1", 2), 3)
+        self.assertEqual(o.callRemote("add1", 2), 3)
 
     def test_async(self):
         """
@@ -1662,7 +1760,7 @@ class SpreadUtilTestCase(unittest.TestCase):
         o = LocalRemoteTest()
         d = o.callRemote("add", 2, y=4)
         self.assertIsInstance(d, Deferred)
-        d.addCallback(self.assertEquals, 6)
+        d.addCallback(self.assertEqual, 6)
         return d
 
     def test_asyncFail(self):
@@ -1683,7 +1781,7 @@ class SpreadUtilTestCase(unittest.TestCase):
         """
         o = LocalRemoteTest()
         m = o.remoteMethod("add1")
-        self.assertEquals(m(3), 4)
+        self.assertEqual(m(3), 4)
 
     def test_localAsyncForwarder(self):
         """

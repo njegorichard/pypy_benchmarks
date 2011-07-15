@@ -12,7 +12,7 @@ from twisted.trial import unittest
 
 from twisted.internet import reactor, defer, error
 from twisted.internet.defer import succeed
-from twisted.names import client, server, common, authority, hosts, dns
+from twisted.names import client, server, common, authority, dns
 from twisted.python import failure
 from twisted.names.error import DNSFormatError, DNSServerError, DNSNameError
 from twisted.names.error import DNSNotImplementedError, DNSQueryRefusedError
@@ -551,7 +551,7 @@ class AXFRTest(unittest.TestCase):
         m.queries = [dns.Query('fooby.com', dns.AXFR, dns.IN)]
         m.answers = self.records
         self.controller.messageReceived(m, None)
-        self.assertEquals(self.results, self.records)
+        self.assertEqual(self.results, self.records)
 
     def _gotResults(self, result):
         self.results = result
@@ -564,72 +564,7 @@ class AXFRTest(unittest.TestCase):
             m.queries = [] # DJB *doesn't* specify any queries.. hmm..
             m.answers = [records.pop(0)]
             self.controller.messageReceived(m, None)
-        self.assertEquals(self.results, self.records)
-
-class HostsTestCase(unittest.TestCase):
-    def setUp(self):
-        f = open('EtcHosts', 'w')
-        f.write('''
-1.1.1.1    EXAMPLE EXAMPLE.EXAMPLETHING
-1.1.1.2    HOOJY
-::1        ip6thingy
-''')
-        f.close()
-        self.resolver = hosts.Resolver('EtcHosts')
-
-    def testGetHostByName(self):
-        data = [('EXAMPLE', '1.1.1.1'),
-                ('EXAMPLE.EXAMPLETHING', '1.1.1.1'),
-                ('HOOJY', '1.1.1.2'),
-                ]
-        ds = [self.resolver.getHostByName(n).addCallback(self.assertEqual, ip)
-              for n, ip in data]
-        return defer.gatherResults(ds)
-
-    def testLookupAddress(self):
-        d = self.resolver.lookupAddress('HOOJY')
-        d.addCallback(lambda x: self.assertEqual(x[0][0].payload.dottedQuad(),
-                                                 '1.1.1.2'))
-        return d
-
-    def testIPv6(self):
-        d = self.resolver.lookupIPV6Address('ip6thingy')
-        d.addCallback(self.assertEqual, '::1')
-        return d
-
-    testIPv6.skip = 'IPv6 support is not in our hosts resolver yet'
-
-    def testNotImplemented(self):
-        return self.assertFailure(self.resolver.lookupMailExchange('EXAMPLE'),
-                                  NotImplementedError)
-
-    def testQuery(self):
-        d = self.resolver.query(dns.Query('EXAMPLE'))
-        d.addCallback(lambda x: self.assertEqual(x[0][0].payload.dottedQuad(),
-                                                 '1.1.1.1'))
-        return d
-
-    def testNotFound(self):
-        return self.assertFailure(self.resolver.lookupAddress('foueoa'),
-                                  dns.DomainError)
-
-
-    def test_searchFileFor(self):
-        """
-        L{searchFileFor} parses hosts(5) files and returns the address for
-        the given name, or C{None} if the name is not found.
-        """
-        tmp = self.mktemp()
-        f = open(tmp, 'w')
-        f.write('127.0.1.1	helmut.example.org	helmut\n')
-        f.write('# a comment\n')
-        f.write('::1     localhost ip6-localhost ip6-loopback\n')
-        f.close()
-        self.assertEquals(hosts.searchFileFor(tmp, 'helmut'), '127.0.1.1')
-        self.assertEquals(hosts.searchFileFor(tmp, 'ip6-localhost'), '::1')
-        self.assertIdentical(hosts.searchFileFor(tmp, 'blah'), None)
-
-
+        self.assertEqual(self.results, self.records)
 
 class FakeDNSDatagramProtocol(object):
     def __init__(self):
@@ -678,8 +613,8 @@ class RetryLogic(unittest.TestCase):
             expected.sort()
 
             for ((addr, query, timeout, id), expectedAddr) in zip(tries, expected):
-                self.assertEquals(addr, (expectedAddr, 53))
-                self.assertEquals(timeout, t)
+                self.assertEqual(addr, (expectedAddr, 53))
+                self.assertEqual(timeout, t)
 
         self.failIf(fakeProto.queries)
 
@@ -687,7 +622,7 @@ class ResolvConfHandling(unittest.TestCase):
     def testMissing(self):
         resolvConf = self.mktemp()
         r = client.Resolver(resolv=resolvConf)
-        self.assertEquals(r.dynServers, [('127.0.0.1', 53)])
+        self.assertEqual(r.dynServers, [('127.0.0.1', 53)])
         r._parseCall.cancel()
 
     def testEmpty(self):
@@ -695,7 +630,7 @@ class ResolvConfHandling(unittest.TestCase):
         fObj = file(resolvConf, 'w')
         fObj.close()
         r = client.Resolver(resolv=resolvConf)
-        self.assertEquals(r.dynServers, [('127.0.0.1', 53)])
+        self.assertEqual(r.dynServers, [('127.0.0.1', 53)])
         r._parseCall.cancel()
 
 
@@ -807,14 +742,14 @@ class AuthorityTests(unittest.TestCase):
         result = []
         d.addCallback(result.append)
         answer, authority, additional = result[0]
-        self.assertEquals(answer, [])
-        self.assertEquals(
+        self.assertEqual(answer, [])
+        self.assertEqual(
             authority, [
                 dns.RRHeader(
                     str(soa_record.mname), soa_record.TYPE,
                     ttl=soa_record.expire, payload=soa_record,
                     auth=True)])
-        self.assertEquals(additional, [])
+        self.assertEqual(additional, [])
 
 
     def _referralTest(self, method):
@@ -835,12 +770,12 @@ class AuthorityTests(unittest.TestCase):
         result = []
         d.addCallback(result.append)
         answer, authority, additional = result[0]
-        self.assertEquals(answer, [])
-        self.assertEquals(
+        self.assertEqual(answer, [])
+        self.assertEqual(
             authority, [dns.RRHeader(
                     subdomain, dns.NS, ttl=soa_record.expire,
                     payload=nameserver, auth=False)])
-        self.assertEquals(additional, [])
+        self.assertEqual(additional, [])
 
 
     def test_referral(self):

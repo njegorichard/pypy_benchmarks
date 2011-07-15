@@ -5,6 +5,9 @@
 Tests for error handling in PB.
 """
 
+import sys
+
+
 from twisted.trial import unittest
 
 from twisted.spread import pb, flavors, jelly
@@ -166,7 +169,7 @@ class PBConnTestCase(unittest.TestCase):
 
 
 class PBFailureTest(PBConnTestCase):
-    compare = unittest.TestCase.assertEquals
+    compare = unittest.TestCase.assertEqual
 
 
     def _exceptionTest(self, method, exceptionType, flush):
@@ -223,7 +226,7 @@ class PBFailureTest(PBConnTestCase):
 
 
     def _success(self, result, expectedResult):
-        self.assertEquals(result, expectedResult)
+        self.assertEqual(result, expectedResult)
         return result
 
 
@@ -244,7 +247,7 @@ class PBFailureTest(PBConnTestCase):
             failureDeferred = self._addFailingCallbacks(obj.callRemote(method), expected, eb)
             if exc is not None:
                 def gotFailure(err):
-                    self.assertEquals(len(self.flushLoggedErrors(exc)), 1)
+                    self.assertEqual(len(self.flushLoggedErrors(exc)), 1)
                     return err
                 failureDeferred.addBoth(gotFailure)
             return failureDeferred
@@ -360,10 +363,40 @@ class PBFailureTest(PBConnTestCase):
         def exception(failure):
             log.err(failure)
             errs = self.flushLoggedErrors(SynchronousException)
-            self.assertEquals(len(errs), 2)
+            self.assertEqual(len(errs), 2)
         d.addErrback(exception)
 
         return d
+
+
+    def test_throwExceptionIntoGenerator(self):
+        """
+        L{pb.CopiedFailure.throwExceptionIntoGenerator} will throw a
+        L{RemoteError} into the given paused generator at the point where it
+        last yielded.
+        """
+        original = pb.CopyableFailure(AttributeError("foo"))
+        copy = jelly.unjelly(jelly.jelly(original, invoker=DummyInvoker()))
+        exception = []
+        def generatorFunc():
+            try:
+                yield None
+            except pb.RemoteError, exc:
+                exception.append(exc)
+            else:
+                self.fail("RemoteError not raised")
+        gen = generatorFunc()
+        gen.send(None)
+        self.assertRaises(StopIteration, copy.throwExceptionIntoGenerator, gen)
+        self.assertEqual(len(exception), 1)
+        exc = exception[0]
+        self.assertEqual(exc.remoteType, "exceptions.AttributeError")
+        self.assertEqual(exc.args, ("foo",))
+        self.assertEqual(exc.remoteTraceback, 'Traceback unavailable\n')
+
+    if sys.version_info[:2] < (2, 5):
+        test_throwExceptionIntoGenerator.skip = (
+            "throwExceptionIntoGenerator is not supported in Python < 2.5")
 
 
 

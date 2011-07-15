@@ -22,6 +22,7 @@ from twisted.python.versions import Version
 from twisted.python.filepath import FilePath
 
 from twisted.python.test import deprecatedattributes
+from twisted.python.test.modules_helpers import TwistedModulesTestCase
 
 
 
@@ -65,7 +66,7 @@ class TestDeprecationWarnings(TestCase):
         """
         version = Version('Twisted', 8, 0, 0)
         format = deprecate.DEPRECATION_WARNING_FORMAT + ': This is a message'
-        self.assertEquals(
+        self.assertEqual(
             getDeprecationWarningString(self.test_getDeprecationWarningString,
                                         version, format),
             'twisted.python.test.test_deprecate.TestDeprecationWarnings.'
@@ -182,7 +183,7 @@ class TestDeprecationWarnings(TestCase):
         """
         version = Version('Twisted', 8, 0, 0)
         dummy = deprecated(version, "something.foobar")(dummyCallable)
-        self.assertEquals(dummy.__doc__,
+        self.assertEqual(dummy.__doc__,
             "\n"
             "    Do nothing.\n\n"
             "    This is used to test the deprecation decorators.\n\n"
@@ -202,7 +203,7 @@ class TestDeprecationWarnings(TestCase):
         version = Version('Twisted', 8, 0, 0)
         decorator = deprecated(version, replacement=dummyReplacementMethod)
         dummy = decorator(dummyCallable)
-        self.assertEquals(dummy.__doc__,
+        self.assertEqual(dummy.__doc__,
             "\n"
             "    Do nothing.\n\n"
             "    This is used to test the deprecation decorators.\n\n"
@@ -341,7 +342,7 @@ class ModuleProxyTests(TestCase):
         _deprecatedAttributes = object.__getattribute__(
             proxy, '_deprecatedAttributes')
         _deprecatedAttributes['foo'] = _MockDeprecatedAttribute(42)
-        self.assertEquals(proxy.foo, 42)
+        self.assertEqual(proxy.foo, 42)
 
 
     def test_privateAttributes(self):
@@ -363,7 +364,7 @@ class ModuleProxyTests(TestCase):
         proxy = self._makeProxy()
         proxy._module = 1
         self.assertNotEquals(object.__getattribute__(proxy, '_module'), 1)
-        self.assertEquals(proxy._module, 1)
+        self.assertEqual(proxy._module, 1)
 
 
     def test_repr(self):
@@ -374,7 +375,7 @@ class ModuleProxyTests(TestCase):
         """
         proxy = self._makeProxy()
         realModule = object.__getattribute__(proxy, '_module')
-        self.assertEquals(
+        self.assertEqual(
             repr(proxy), '<%s module=%r>' % (type(proxy).__name__, realModule))
 
 
@@ -412,7 +413,7 @@ class DeprecatedAttributeTests(TestCase):
         attr = deprecate._DeprecatedAttribute(
             deprecatedattributes, name, self.version, self.message)
 
-        self.assertEquals(attr.__name__, name)
+        self.assertEqual(attr.__name__, name)
 
         # Since we're accessing the value getter directly, as opposed to via
         # the module proxy, we need to match the warning's stack level.
@@ -424,10 +425,10 @@ class DeprecatedAttributeTests(TestCase):
         warningsShown = self.flushWarnings([
             self.test_deprecatedAttributeHelper])
         self.assertIdentical(warningsShown[0]['category'], DeprecationWarning)
-        self.assertEquals(
+        self.assertEqual(
             warningsShown[0]['message'],
             self._getWarningString(name))
-        self.assertEquals(len(warningsShown), 1)
+        self.assertEqual(len(warningsShown), 1)
 
 
     def test_deprecatedAttribute(self):
@@ -440,7 +441,7 @@ class DeprecatedAttributeTests(TestCase):
         # Accessing non-deprecated attributes does not issue a warning.
         deprecatedattributes.ANOTHER_ATTRIBUTE
         warningsShown = self.flushWarnings([self.test_deprecatedAttribute])
-        self.assertEquals(len(warningsShown), 0)
+        self.assertEqual(len(warningsShown), 0)
 
         name = 'DEPRECATED_ATTRIBUTE'
 
@@ -449,9 +450,9 @@ class DeprecatedAttributeTests(TestCase):
         getattr(deprecatedattributes, name)
 
         warningsShown = self.flushWarnings([self.test_deprecatedAttribute])
-        self.assertEquals(len(warningsShown), 1)
+        self.assertEqual(len(warningsShown), 1)
         self.assertIdentical(warningsShown[0]['category'], DeprecationWarning)
-        self.assertEquals(
+        self.assertEqual(
             warningsShown[0]['message'],
             self._getWarningString(name))
 
@@ -486,6 +487,14 @@ class DeprecatedAttributeTests(TestCase):
 
         self.assertIdentical(proxy, sys.modules[self._testModuleName])
 
+
+
+class ImportedModuleAttributeTests(TwistedModulesTestCase):
+    """
+    Tests for L{deprecatedModuleAttribute} which involve loading a module via
+    'import'.
+    """
+
     _packageInit = """\
 from twisted.python.deprecate import deprecatedModuleAttribute
 from twisted.python.versions import Version
@@ -494,29 +503,97 @@ deprecatedModuleAttribute(
     Version('Package', 1, 2, 3), 'message', __name__, 'module')
 """
 
+
+    def pathEntryTree(self, tree):
+        """
+        Create some files in a hierarchy, based on a dictionary describing those
+        files.  The resulting hierarchy will be placed onto sys.path for the
+        duration of the test.
+
+        @param tree: A dictionary representing a directory structure.  Keys are
+            strings, representing filenames, dictionary values represent
+            directories, string values represent file contents.
+
+        @return: another dictionary similar to the input, with file content
+            strings replaced with L{FilePath} objects pointing at where those
+            contents are now stored.
+        """
+        def makeSomeFiles(pathobj, dirdict):
+            pathdict = {}
+            for (key, value) in dirdict.items():
+                child = pathobj.child(key)
+                if isinstance(value, str):
+                    pathdict[key] = child
+                    child.setContent(value)
+                elif isinstance(value, dict):
+                    child.createDirectory()
+                    pathdict[key] = makeSomeFiles(child, value)
+                else:
+                    raise ValueError("only strings and dicts allowed as values")
+            return pathdict
+        base = FilePath(self.mktemp())
+        base.makedirs()
+
+        result = makeSomeFiles(base, tree)
+        self.replaceSysPath([base.path] + sys.path)
+        self.replaceSysModules(sys.modules.copy())
+        return result
+
+
+    def simpleModuleEntry(self):
+        """
+        Add a sample module and package to the path, returning a L{FilePath}
+        pointing at the module which will be loadable as C{package.module}.
+        """
+        paths = self.pathEntryTree(
+            {"package": {"__init__.py": self._packageInit,
+                         "module.py": ""}})
+        return paths['package']['module.py']
+
+
+    def checkOneWarning(self, modulePath):
+        """
+        Verification logic for L{test_deprecatedModule}.
+        """
+        # import package.module
+        from package import module
+        self.assertEqual(module.__file__, modulePath.path)
+        emitted = self.flushWarnings([self.checkOneWarning])
+        self.assertEqual(len(emitted), 1)
+        self.assertEqual(emitted[0]['message'],
+                          'package.module was deprecated in Package 1.2.3: '
+                          'message')
+        self.assertEqual(emitted[0]['category'], DeprecationWarning)
+
+
     def test_deprecatedModule(self):
         """
         If L{deprecatedModuleAttribute} is used to deprecate a module attribute
         of a package, only one deprecation warning is emitted when the
         deprecated module is imported.
         """
-        base = FilePath(self.mktemp())
-        base.makedirs()
-        package = base.child('package')
-        package.makedirs()
-        package.child('__init__.py').setContent(self._packageInit)
-        module = package.child('module.py').setContent('')
+        self.checkOneWarning(self.simpleModuleEntry())
 
-        sys.path.insert(0, base.path)
-        self.addCleanup(sys.path.remove, base.path)
 
-        # import package.module
-        from package import module
-        # make sure it's the right module.
-        self.assertEquals(module.__file__.rsplit(".", 1)[0],
-                          package.child('module.py').path.rsplit(".", 1)[0])
-        warningsShown = self.flushWarnings([self.test_deprecatedModule])
-        self.assertEquals(len(warningsShown), 1)
+    def test_deprecatedModuleMultipleTimes(self):
+        """
+        If L{deprecatedModuleAttribute} is used to deprecate a module attribute
+        of a package, only one deprecation warning is emitted when the
+        deprecated module is subsequently imported.
+        """
+        mp = self.simpleModuleEntry()
+        # The first time, the code needs to be loaded.
+        self.checkOneWarning(mp)
+        # The second time, things are slightly different; the object's already
+        # in the namespace.
+        self.checkOneWarning(mp)
+        # The third and fourth times, things things should all be exactly the
+        # same, but this is a sanity check to make sure the implementation isn't
+        # special casing the second time.  Also, putting these cases into a loop
+        # means that the stack will be identical, to make sure that the
+        # implementation doesn't rely too much on stack-crawling.
+        for x in range(2):
+            self.checkOneWarning(mp)
 
 
 
@@ -570,7 +647,7 @@ def callTestFunction():
             filename = filename[:-1]
         self.assertSamePath(
             FilePath(warningsShown[0]["filename"]), FilePath(filename))
-        self.assertEquals(warningsShown[0]["message"], "A Warning Message")
+        self.assertEqual(warningsShown[0]["message"], "A Warning Message")
 
 
     def test_warningLineNumber(self):
@@ -586,9 +663,9 @@ def callTestFunction():
             self.package.sibling('twisted_private_helper').child('module.py'))
         # Line number 9 is the last line in the testFunction in the helper
         # module.
-        self.assertEquals(warningsShown[0]["lineno"], 9)
-        self.assertEquals(warningsShown[0]["message"], "A Warning String")
-        self.assertEquals(len(warningsShown), 1)
+        self.assertEqual(warningsShown[0]["lineno"], 9)
+        self.assertEqual(warningsShown[0]["message"], "A Warning String")
+        self.assertEqual(len(warningsShown), 1)
 
 
     def assertSamePath(self, first, second):
@@ -633,9 +710,9 @@ def callTestFunction():
         expectedPath = self.package.sibling(
             'twisted_renamed_helper').child('module.py')
         self.assertSamePath(warnedPath, expectedPath)
-        self.assertEquals(warningsShown[0]["lineno"], 9)
-        self.assertEquals(warningsShown[0]["message"], "A Warning String")
-        self.assertEquals(len(warningsShown), 1)
+        self.assertEqual(warningsShown[0]["lineno"], 9)
+        self.assertEqual(warningsShown[0]["message"], "A Warning String")
+        self.assertEqual(len(warningsShown), 1)
 
 
     def test_filteredWarning(self):
@@ -656,7 +733,7 @@ def callTestFunction():
         module.callTestFunction()
 
         warningsShown = self.flushWarnings()
-        self.assertEquals(len(warningsShown), 0)
+        self.assertEqual(len(warningsShown), 0)
 
 
     def test_filteredOnceWarning(self):
@@ -678,7 +755,7 @@ def callTestFunction():
         module.callTestFunction()
 
         warningsShown = self.flushWarnings()
-        self.assertEquals(len(warningsShown), 1)
+        self.assertEqual(len(warningsShown), 1)
         message = warningsShown[0]['message']
         category = warningsShown[0]['category']
         filename = warningsShown[0]['filename']

@@ -25,7 +25,7 @@ class SetupTest(TestCase):
         """
         Passing C{conditionalExtensions} as a list of L{ConditionalExtension}
         objects to get_setup_args inserts a custom build_ext into the result
-        which knows how to check whether they should be 
+        which knows how to check whether they should be built.
         """
         good_ext = ConditionalExtension("whatever", ["whatever.c"],
                                         condition=lambda b: True)
@@ -34,12 +34,12 @@ class SetupTest(TestCase):
         args = get_setup_args(conditionalExtensions=[good_ext, bad_ext])
         # ext_modules should be set even though it's not used.  See comment
         # in get_setup_args
-        self.assertEquals(args["ext_modules"], [good_ext, bad_ext])
+        self.assertEqual(args["ext_modules"], [good_ext, bad_ext])
         cmdclass = args["cmdclass"]
         build_ext = cmdclass["build_ext"]
         builder = build_ext(Distribution())
         builder.prepare_extensions()
-        self.assertEquals(builder.extensions, [good_ext])
+        self.assertEqual(builder.extensions, [good_ext])
 
 
     def test_win32Definition(self):
@@ -52,7 +52,7 @@ class SetupTest(TestCase):
         builder = args["cmdclass"]["build_ext"](Distribution())
         self.patch(os, "name", "nt")
         builder.prepare_extensions()
-        self.assertEquals(ext.define_macros, [("whatever", 2), ("WIN32", 1)])
+        self.assertEqual(ext.define_macros, [("whatever", 2), ("WIN32", 1)])
 
 
 
@@ -76,7 +76,7 @@ from twisted.python import versions
 version = versions.Version("twisted", 0, 1, 2)
 """)
         f.close()
-        self.assertEquals(dist.getVersion("core", base=self.dirname), "0.1.2")
+        self.assertEqual(dist.getVersion("core", base=self.dirname), "0.1.2")
 
     def test_getVersionOther(self):
         """
@@ -90,10 +90,14 @@ from twisted.python import versions
 version = versions.Version("twisted.blat", 9, 8, 10)
 """)
         f.close()
-        self.assertEquals(dist.getVersion("blat", base=self.dirname), "9.8.10")
+        self.assertEqual(dist.getVersion("blat", base=self.dirname), "9.8.10")
 
 
 class GetScriptsTest(TestCase):
+    """
+    Tests for L{dist.getScripts} which returns the scripts which should be
+    included in the distribution of a project.
+    """
 
     def test_scriptsInSVN(self):
         """
@@ -108,8 +112,23 @@ class GetScriptsTest(TestCase):
         f.write('yay')
         f.close()
         scripts = dist.getScripts('proj', basedir=basedir)
-        self.assertEquals(len(scripts), 1)
-        self.assertEquals(os.path.basename(scripts[0]), 'exy')
+        self.assertEqual(len(scripts), 1)
+        self.assertEqual(os.path.basename(scripts[0]), 'exy')
+
+
+    def test_excludedPreamble(self):
+        """
+        L{dist.getScripts} includes neither C{"_preamble.py"} nor
+        C{"_preamble.pyc"}.
+        """
+        basedir = FilePath(self.mktemp())
+        bin = basedir.child('bin')
+        bin.makedirs()
+        bin.child('_preamble.py').setContent('some preamble code\n')
+        bin.child('_preamble.pyc').setContent('some preamble byte code\n')
+        bin.child('program').setContent('good program code\n')
+        scripts = dist.getScripts("", basedir=basedir.path)
+        self.assertEqual(scripts, [bin.child('program').path])
 
 
     def test_scriptsInRelease(self):
@@ -124,8 +143,8 @@ class GetScriptsTest(TestCase):
         f.write('yay')
         f.close()
         scripts = dist.getScripts('proj', basedir=basedir)
-        self.assertEquals(len(scripts), 1)
-        self.assertEquals(os.path.basename(scripts[0]), 'exy')
+        self.assertEqual(len(scripts), 1)
+        self.assertEqual(os.path.basename(scripts[0]), 'exy')
 
 
     def test_noScriptsInSVN(self):
@@ -139,7 +158,7 @@ class GetScriptsTest(TestCase):
         os.mkdir(os.path.join(basedir, 'bin'))
         os.mkdir(os.path.join(basedir, 'bin', 'otherproj'))
         scripts = dist.getScripts('noscripts', basedir=basedir)
-        self.assertEquals(scripts, [])
+        self.assertEqual(scripts, [])
 
 
     def test_getScriptsTopLevel(self):
@@ -158,7 +177,7 @@ class GetScriptsTest(TestCase):
         subdir.child("not-included").setContent("not included")
 
         scripts = dist.getScripts("", basedir=basedir.path)
-        self.assertEquals(scripts, [included.path])
+        self.assertEqual(scripts, [included.path])
 
 
     def test_noScriptsInSubproject(self):
@@ -170,4 +189,4 @@ class GetScriptsTest(TestCase):
         basedir = self.mktemp()
         os.mkdir(basedir)
         scripts = dist.getScripts('noscripts', basedir=basedir)
-        self.assertEquals(scripts, [])
+        self.assertEqual(scripts, [])

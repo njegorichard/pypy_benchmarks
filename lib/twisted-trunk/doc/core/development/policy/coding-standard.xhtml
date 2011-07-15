@@ -47,9 +47,16 @@
     <h3>Test Suite</h3>
 
     <p>The Twisted test suite is spread across many subpackages of the
-     <code>twisted</code> package.  Many tests are in
+     <code>twisted</code> package.  Many older tests are in
      <code>twisted.test</code>.  Others can be found at places such as
-     <code>twisted.web.test</code> or <code>twisted.internet.test</code>.
+     <code>twisted.web.test</code> (for <code>twisted.web</code> tests)
+     or <code>twisted.internet.test</code> (for <code>twisted.internet</code>
+     tests). The latter arrangement, <code>twisted.somepackage.test</code>,
+     is preferred for new tests except when a test module already exists in
+     <code>twisted.test</code>.
+    </p>
+
+    <p>
      Parts of the Twisted test suite may serve as good examples of how to
      write tests for Twisted or for Twisted-based libraries (newer parts of
      the test suite are generally better examples than older parts - check
@@ -106,17 +113,15 @@ $ bin/trial twisted/mail/pop3.py
     <h2>Copyright Header</h2>
 
     <p>Whenever a new file is added to the repository, add the following
-    license header at the top of the file, including the year the file was
-    added. For example:</p>
+    license header at the top of the file:</p>
 
 <pre class="python">
-# Copyright (c) 2009 Twisted Matrix Laboratories.
+# Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 </pre>
 
-    <p>When you update existing files, make sure the year in the copyright
-    header is up to date as well. You should add a new copyright header when
-    it's completely missing in the file that is being edited.</p>
+    <p>When you update existing files, if there is no copyright header, add
+    one.</p>
 
     <h2>Whitespace</h2>
 
@@ -272,7 +277,7 @@ class Ninja(object):
 
     <p>Docstrings should be written in epytext format; more
     documentation is available in the
-    <a href="http://epydoc.sourceforge.net/epytext.html"
+    <a href="http://epydoc.sourceforge.net/manual-epytext.html"
     >Epytext Markup Language documentation</a>.</p>
 
     <p>Additionally, to accommodate emacs users:</p>
@@ -359,17 +364,25 @@ def foo2bar(f):
       distutils will rewrite the shebang line upon installation so this policy
       only covers the source files in version control.</p>
 
-      <li>Add the Twisted running-from-SVN header:
+      <li>For core scripts, add this Twisted running-from-SVN header:
 <pre class="python">
-### Twisted Preamble
-# This makes sure that users don't have to set up their environment
-# specially in order to run these programs from bin/.
+import sys
+try:
+    import _preamble
+except ImportError:
+    sys.clear_exc()
+</pre>
+
+      Or for sub-project scripts, add a modified version which also adjusts <code>sys.path</code>:
+<pre class="python">
 import sys, os
-if os.path.abspath(sys.argv[0]).find(os.sep+'Twisted') != -1:
-    sys.path.insert(0, os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir)))
-if not hasattr(os, "getuid") or os.getuid() != 0:
-    sys.path.insert(0, os.getcwd())
-### end of preamble
+extra = os.path.dirname(os.path.dirname(sys.argv[0]))
+sys.path.insert(0, extra)
+try:
+    import _preamble
+except ImportError:
+    sys.clear_exc()
+sys.path.remove(extra)
 </pre></li>
 
       <li>And end with:

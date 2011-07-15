@@ -37,10 +37,11 @@ import warnings
 import textwrap
 from os import path
 
-from twisted.internet import reactor, protocol
+from twisted.internet import reactor, protocol, task
 from twisted.persisted import styles
 from twisted.protocols import basic
 from twisted.python import log, reflect, text
+from twisted.python.compat import set
 
 NUL = chr(0)
 CR = chr(015)
@@ -968,7 +969,8 @@ class ServerSupportedFeatures(_CommandDispatcherMixin):
 
 
 class IRCClient(basic.LineReceiver):
-    """Internet Relay Chat client protocol, with sprinkles.
+    """
+    Internet Relay Chat client protocol, with sprinkles.
 
     In addition to providing an interface for an IRC client protocol,
     this class also contains reasonable implementations of many common
@@ -980,11 +982,6 @@ class IRCClient(basic.LineReceiver):
        does).
      - Add flood protection/rate limiting for my CTCP replies.
      - NickServ cooperation.  (a mix-in?)
-     - Heartbeat.  The transport may die in such a way that it does not realize
-       it is dead until it is written to.  Sending something (like "PING
-       this.irc-host.net") during idle peroids would alleviate that.  If
-       you're concerned with the stability of the host as well as that of the
-       transport, you might care to watch for the corresponding PONG.
 
     @ivar nickname: Nickname the client will use.
     @ivar password: Password used to log on to the server.  May be C{None}.
@@ -1036,7 +1033,23 @@ class IRCClient(basic.LineReceiver):
 
     @type supported: L{ServerSupportedFeatures}
     @ivar supported: Available ISUPPORT features on the server
+
+    @type hostname: C{str}
+    @ivar hostname: Host name of the IRC server the client is connected to.
+        Initially the host name is C{None} and later is set to the host name
+        from which the I{RPL_WELCOME} message is received.
+
+    @type _heartbeat: L{task.LoopingCall}
+    @ivar _heartbeat: Looping call to perform the keepalive by calling
+        L{IRCClient._sendHeartbeat} every L{heartbeatInterval} seconds, or
+        C{None} if there is no heartbeat.
+
+    @type heartbeatInterval: C{float}
+    @ivar heartbeatInterval: Interval, in seconds, to send I{PING} messages to
+        the server as a form of keepalive, defaults to 120 seconds. Use C{None}
+        to disable the heartbeat.
     """
+    hostname = None
     motd = None
     nickname = 'irc'
     password = None
@@ -1072,6 +1085,10 @@ class IRCClient(basic.LineReceiver):
     _attemptedNick = ''
     erroneousNickFallback = 'defaultnick'
 
+    _heartbeat = None
+    heartbeatInterval = 120
+
+
     def _reallySendLine(self, line):
         return basic.LineReceiver.sendLine(self, lowQuote(line) + '\r')
 
@@ -1090,6 +1107,52 @@ class IRCClient(basic.LineReceiver):
                                                     self._sendLine)
         else:
             self._queueEmptying = None
+
+
+    def connectionLost(self, reason):
+        basic.LineReceiver.connectionLost(self, reason)
+        self.stopHeartbeat()
+
+
+    def _createHeartbeat(self):
+        """
+        Create the heartbeat L{LoopingCall}.
+        """
+        return task.LoopingCall(self._sendHeartbeat)
+
+
+    def _sendHeartbeat(self):
+        """
+        Send a I{PING} message to the IRC server as a form of keepalive.
+        """
+        self.sendLine('PING ' + self.hostname)
+
+
+    def stopHeartbeat(self):
+        """
+        Stop sending I{PING} messages to keep the connection to the server
+        alive.
+
+        @since: 11.1
+        """
+        if self._heartbeat is not None:
+            self._heartbeat.stop()
+            self._heartbeat = None
+
+
+    def startHeartbeat(self):
+        """
+        Start sending I{PING} messages every L{IRCClient.heartbeatInterval}
+        seconds to keep the connection to the server alive during periods of no
+        activity.
+
+        @since: 11.1
+        """
+        self.stopHeartbeat()
+        if self.heartbeatInterval is None:
+            return
+        self._heartbeat = self._createHeartbeat()
+        self._heartbeat.start(self.heartbeatInterval, now=False)
 
 
     ### Interface level client->user output methods
@@ -1735,13 +1798,17 @@ class IRCClient(basic.LineReceiver):
         """
         raise IRCPasswordMismatch("Password Incorrect.")
 
+
     def irc_RPL_WELCOME(self, prefix, params):
         """
         Called when we have received the welcome from the server.
         """
+        self.hostname = prefix
         self._registered = True
         self.nickname = self._attemptedNick
         self.signedOn()
+        self.startHeartbeat()
+
 
     def irc_JOIN(self, prefix, params):
         """
@@ -1818,9 +1885,11 @@ class IRCClient(basic.LineReceiver):
         channel = params[0]
         message = params[-1]
 
-        if not message: return # don't raise an exception if some idiot sends us a blank message
+        if not message:
+            # Don't raise an exception if we get blank message.
+            return
 
-        if message[0]==X_DELIM:
+        if message[0] == X_DELIM:
             m = ctcpExtract(message)
             if m['extended']:
                 self.ctcpQuery(user, channel, m['extended'])
@@ -1972,15 +2041,34 @@ class IRCClient(basic.LineReceiver):
     ### Receiving a CTCP query from another party
     ### It is safe to leave these alone.
 
+
     def ctcpQuery(self, user, channel, messages):
-        """Dispatch method for any CTCP queries received.
         """
-        for m in messages:
-            method = getattr(self, "ctcpQuery_%s" % m[0], None)
-            if method:
-                method(user, channel, m[1])
-            else:
-                self.ctcpUnknownQuery(user, channel, m[0], m[1])
+        Dispatch method for any CTCP queries received.
+
+        Duplicated CTCP queries are ignored and no dispatch is
+        made. Unrecognized CTCP queries invoke L{IRCClient.ctcpUnknownQuery}.
+        """
+        seen = set()
+        for tag, data in messages:
+            method = getattr(self, 'ctcpQuery_%s' % tag, None)
+            if tag not in seen:
+                if method is not None:
+                    method(user, channel, data)
+                else:
+                    self.ctcpUnknownQuery(user, channel, tag, data)
+            seen.add(tag)
+
+
+    def ctcpUnknownQuery(self, user, channel, tag, data):
+        """
+        Fallback handler for unrecognized CTCP queries.
+
+        No CTCP I{ERRMSG} reply is made to remove a potential denial of service
+        avenue.
+        """
+        log.msg('Unknown CTCP query from %r: %r %r' % (user, tag, data))
+
 
     def ctcpQuery_ACTION(self, user, channel, data):
         self.action(user, channel, data)
@@ -2206,14 +2294,6 @@ class IRCClient(basic.LineReceiver):
     #    """
     #    raise NotImplementedError
 
-    def ctcpUnknownQuery(self, user, channel, tag, data):
-        nick = string.split(user,"!")[0]
-        self.ctcpMakeReply(nick, [('ERRMSG',
-                                   "%s %s: Unknown query '%s'"
-                                   % (tag, data, tag))])
-
-        log.msg("Unknown CTCP query from %s: %s %s\n"
-                 % (user, tag, data))
 
     def ctcpMakeReply(self, user, messages):
         """
@@ -2762,14 +2842,13 @@ class DccFileReceive(DccFileReceiveBasic):
 X_DELIM = chr(001)
 
 def ctcpExtract(message):
-    """Extract CTCP data from a string.
-
-    Returns a dictionary with two items:
-
-       - C{'extended'}: a list of CTCP (tag, data) tuples
-       - C{'normal'}: a list of strings which were not inside a CTCP delimeter
     """
+    Extract CTCP data from a string.
 
+    @return: A C{dict} containing two keys:
+       - C{'extended'}: A list of CTCP (tag, data) tuples.
+       - C{'normal'}: A list of strings which were not inside a CTCP delimiter.
+    """
     extended_messages = []
     normal_messages = []
     retval = {'extended': extended_messages,

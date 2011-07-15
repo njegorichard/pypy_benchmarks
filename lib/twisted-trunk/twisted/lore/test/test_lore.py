@@ -36,7 +36,6 @@ from xml.dom import minidom as dom
 
 from twisted.trial import unittest
 from twisted.python.filepath import FilePath
-from twisted.python.versions import Version
 
 from twisted.lore import tree, process, indexer, numberer, htmlbook, default
 from twisted.lore.default import factory
@@ -318,7 +317,7 @@ class TestFactory(unittest.TestCase, _XMLAssertionMixin):
         actual = process.outputdirGenerator(join("/", 'home', 'joe', "myfile.html"),
                                             '.xhtml', inputdir, outputdir)
         expected = normp(join("/", 'away', 'joseph', 'myfile.xhtml'))
-        self.assertEquals(expected, actual)
+        self.assertEqual(expected, actual)
 
     def test_outputdirGeneratorBadInput(self):
         options = {'outputdir': '/away/joseph/', 'inputdir': '/home/joe/' }
@@ -393,7 +392,7 @@ class TestFactory(unittest.TestCase, _XMLAssertionMixin):
                     }
         dct = book.__dict__
         for k in dct:
-            self.assertEquals(dct[k], expected[k])
+            self.assertEqual(dct[k], expected[k])
 
     def test_runningLore(self):
         options = lore.Options()
@@ -413,7 +412,7 @@ class TestFactory(unittest.TestCase, _XMLAssertionMixin):
                               '--index=%s' % indexFilename
                               ])
         result = lore.runGivenOptions(options)
-        self.assertEquals(None, result)
+        self.assertEqual(None, result)
         self.assertEqualFiles1("lore_index_file_unnumbered_out.html", indexFilename + ".html")
 
 
@@ -436,7 +435,7 @@ class TestFactory(unittest.TestCase, _XMLAssertionMixin):
                               '--index=%s' % indexFilename
                               ])
         result = lore.runGivenOptions(options)
-        self.assertEquals(None, result)
+        self.assertEqual(None, result)
 
         self.assertEqual(
             # XXX This doesn't seem like a very good index file.
@@ -523,7 +522,7 @@ programming language: <a href="lore_index_test.html#index01">link</a><br />
                               inputFilename, inputFilename2])
         result = lore.runGivenOptions(options)
 
-        self.assertEquals(None, result)
+        self.assertEqual(None, result)
         #self.assertEqualFiles1("lore_index_file_out_multiple.html", indexFilename + ".tns")
         #                       VVV change to new, numbered files
         self.assertEqualFiles("lore_numbering_test_out.html", "lore_numbering_test.tns")
@@ -598,7 +597,7 @@ programming language: <a href="lore_index_test.html#index01">link</a><br />
 
         tree.setIndexLink(templ, indexFilename)
 
-        self.assertEquals(
+        self.assertEqual(
             [],
             domhelpers.findElementsWithAttribute(templ,
                                                  "class",
@@ -619,7 +618,7 @@ programming language: <a href="lore_index_test.html#index01">link</a><br />
 
         tree.setIndexLink(templ, indexFilename)
 
-        self.assertEquals(
+        self.assertEqual(
             [],
             domhelpers.findElementsWithAttribute(templ,
                                                  "class",
@@ -1197,32 +1196,3 @@ class ScriptTests(unittest.TestCase):
         """
         processor = lore.getProcessor("lore", "html", options)
         self.assertNotIdentical(processor, None)
-
-
-
-class DeprecationTests(unittest.TestCase):
-    """
-    Tests for deprecated APIs in L{twisted.lore.tree}.
-    """
-    def test_comparePosition(self):
-        """
-        L{tree.comparePosition} is deprecated.
-        """
-        from twisted.web.microdom import parseString
-        element = parseString('<foo/>').documentElement
-        self.assertEqual(
-            self.callDeprecated(
-                Version('Twisted', 9, 0, 0),
-                tree.comparePosition, element, element),
-            0)
-
-
-    def test_compareMarkPos(self):
-        """
-        L{tree.compareMarkPos} is deprecated.
-        """
-        self.assertEqual(
-            self.callDeprecated(
-                Version('Twisted', 9, 0, 0),
-                tree.compareMarkPos, [0, 1], [1, 2]),
-            -1)

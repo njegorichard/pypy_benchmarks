@@ -8,13 +8,20 @@ HTTP client.
 
 import os, types
 from urlparse import urlunparse
+from urllib import splithost, splittype
+import zlib
+
+from zope.interface import implements
 
 from twisted.python import log
 from twisted.web import http
-from twisted.internet import defer, protocol, reactor
+from twisted.internet import defer, protocol, task, reactor
+from twisted.internet.interfaces import IProtocol
 from twisted.python import failure
 from twisted.python.util import InsensitiveDict
+from twisted.python.components import proxyForInterface
 from twisted.web import error
+from twisted.web.iweb import UNKNOWN_LENGTH, IBodyProducer, IResponse
 from twisted.web.http_headers import Headers
 from twisted.python.compat import set
 
@@ -34,11 +41,20 @@ class HTTPPageGetter(http.HTTPClient):
     Typically used with L{HTTPClientFactory}.  Note that this class does not, by
     itself, do anything with the response.  If you want to download a resource
     into a file, use L{HTTPPageDownloader} instead.
+
+    @ivar _completelyDone: A boolean indicating whether any further requests are
+        necessary after this one completes in order to provide a result to
+        C{self.factory.deferred}.  If it is C{False}, then a redirect is going
+        to be followed.  Otherwise, this protocol's connection is the last one
+        before firing the result Deferred.  This is used to make sure the result
+        Deferred is only fired after the connection is cleaned up.
     """
 
     quietLoss = 0
     followRedirect = True
     failed = 0
+
+    _completelyDone = True
 
     _specialHeaders = set(('host', 'user-agent', 'cookie', 'content-length'))
 
@@ -128,6 +144,7 @@ class HTTPPageGetter(http.HTTPClient):
                 self.transport.loseConnection()
                 return
 
+            self._completelyDone = False
             self.factory.setURL(url)
 
             if self.factory.scheme == 'https':
@@ -158,10 +175,21 @@ class HTTPPageGetter(http.HTTPClient):
         self.factory.method = 'GET'
         self.handleStatus_301()
 
+
     def connectionLost(self, reason):
+        """
+        When the connection used to issue the HTTP request is closed, notify the
+        factory if we have not already, so it can produce a result.
+        """
         if not self.quietLoss:
             http.HTTPClient.connectionLost(self, reason)
             self.factory.noPage(reason)
+        if self._completelyDone:
+            # Only if we think we're completely done do we tell the factory that
+            # we're "disconnected".  This way when we're following redirects,
+            # only the last protocol used will fire the _disconnectedDeferred.
+            self.factory._disconnectedDeferred.callback(None)
+
 
     def handleResponse(self, response):
         if self.quietLoss:
@@ -262,6 +290,12 @@ class HTTPClientFactory(protocol.ClientFactory):
 
     @type _redirectCount: int
     @ivar _redirectCount: The current number of HTTP redirects encountered.
+
+    @ivar _disconnectedDeferred: A L{Deferred} which only fires after the last
+        connection associated with the request (redirects may cause multiple
+        connections to be required) has closed.  The result Deferred will only
+        fire after this Deferred, so that callers can be assured that there are
+        no more event sources in the reactor once they get the result.
     """
 
     protocol = HTTPPageGetter
@@ -299,8 +333,23 @@ class HTTPClientFactory(protocol.ClientFactory):
         self.setURL(url)
 
         self.waiting = 1
+        self._disconnectedDeferred = defer.Deferred()
         self.deferred = defer.Deferred()
+        # Make sure the first callback on the result Deferred pauses the
+        # callback chain until the request connection is closed.
+        self.deferred.addBoth(self._waitForDisconnect)
         self.response_headers = None
+
+
+    def _waitForDisconnect(self, passthrough):
+        """
+        Chain onto the _disconnectedDeferred, preserving C{passthrough}, so that
+        the result is only available after the associated connection has been
+        closed.
+        """
+        self._disconnectedDeferred.addCallback(lambda ignored: passthrough)
+        return self._disconnectedDeferred
+
 
     def __repr__(self):
         return "<%s: %s>" % (self.__class__.__name__, self.url)
@@ -352,9 +401,18 @@ class HTTPClientFactory(protocol.ClientFactory):
             self.deferred.errback(reason)
 
     def clientConnectionFailed(self, _, reason):
+        """
+        When a connection attempt fails, the request cannot be issued.  If no
+        result has yet been provided to the result Deferred, provide the
+        connection failure reason as an error result.
+        """
         if self.waiting:
             self.waiting = 0
+            # If the connection attempt failed, there is nothing more to
+            # disconnect, so just fire that Deferred now.
+            self._disconnectedDeferred.callback(None)
             self.deferred.errback(reason)
+
 
 
 class HTTPDownloader(HTTPClientFactory):
@@ -570,7 +628,7 @@ def downloadPage(url, file, contextFactory=None, *args, **kwargs):
 from twisted.internet.protocol import ClientCreator
 from twisted.web.error import SchemeNotSupported
 from twisted.web._newclient import ResponseDone, Request, HTTP11ClientProtocol
-from twisted.web._newclient import Response
+from twisted.web._newclient import Response, ResponseFailed
 
 try:
     from twisted.internet.ssl import ClientContextFactory
@@ -621,7 +679,162 @@ class _WebToNormalContextFactory(object):
 
 
 
-class Agent(object):
+class FileBodyProducer(object):
+    """
+    L{FileBodyProducer} produces bytes from an input file object incrementally
+    and writes them to a consumer.
+
+    Since file-like objects cannot be read from in an event-driven manner,
+    L{FileBodyProducer} uses a L{Cooperator} instance to schedule reads from
+    the file.  This process is also paused and resumed based on notifications
+    from the L{IConsumer} provider being written to.
+
+    The file is closed after it has been read, or if the producer is stopped
+    early.
+
+    @ivar _inputFile: Any file-like object, bytes read from which will be
+        written to a consumer.
+
+    @ivar _cooperate: A method like L{Cooperator.cooperate} which is used to
+        schedule all reads.
+
+    @ivar _readSize: The number of bytes to read from C{_inputFile} at a time.
+    """
+    implements(IBodyProducer)
+
+    # Python 2.4 doesn't have these symbolic constants
+    _SEEK_SET = getattr(os, 'SEEK_SET', 0)
+    _SEEK_END = getattr(os, 'SEEK_END', 2)
+
+    def __init__(self, inputFile, cooperator=task, readSize=2 ** 16):
+        self._inputFile = inputFile
+        self._cooperate = cooperator.cooperate
+        self._readSize = readSize
+        self.length = self._determineLength(inputFile)
+
+
+    def _determineLength(self, fObj):
+        """
+        Determine how many bytes can be read out of C{fObj} (assuming it is not
+        modified from this point on).  If the determination cannot be made,
+        return C{UNKNOWN_LENGTH}.
+        """
+        try:
+            seek = fObj.seek
+            tell = fObj.tell
+        except AttributeError:
+            return UNKNOWN_LENGTH
+        originalPosition = tell()
+        seek(0, self._SEEK_END)
+        end = tell()
+        seek(originalPosition, self._SEEK_SET)
+        return end - originalPosition
+
+
+    def stopProducing(self):
+        """
+        Permanently stop writing bytes from the file to the consumer by
+        stopping the underlying L{CooperativeTask}.
+        """
+        self._inputFile.close()
+        self._task.stop()
+
+
+    def startProducing(self, consumer):
+        """
+        Start a cooperative task which will read bytes from the input file and
+        write them to C{consumer}.  Return a L{Deferred} which fires after all
+        bytes have been written.
+
+        @param consumer: Any L{IConsumer} provider
+        """
+        self._task = self._cooperate(self._writeloop(consumer))
+        d = self._task.whenDone()
+        def maybeStopped(reason):
+            # IBodyProducer.startProducing's Deferred isn't support to fire if
+            # stopProducing is called.
+            reason.trap(task.TaskStopped)
+            return defer.Deferred()
+        d.addCallbacks(lambda ignored: None, maybeStopped)
+        return d
+
+
+    def _writeloop(self, consumer):
+        """
+        Return an iterator which reads one chunk of bytes from the input file
+        and writes them to the consumer for each time it is iterated.
+        """
+        while True:
+            bytes = self._inputFile.read(self._readSize)
+            if not bytes:
+                self._inputFile.close()
+                break
+            consumer.write(bytes)
+            yield None
+
+
+    def pauseProducing(self):
+        """
+        Temporarily suspend copying bytes from the input file to the consumer
+        by pausing the L{CooperativeTask} which drives that activity.
+        """
+        self._task.pause()
+
+
+    def resumeProducing(self):
+        """
+        Undo the effects of a previous C{pauseProducing} and resume copying
+        bytes to the consumer by resuming the L{CooperativeTask} which drives
+        the write activity.
+        """
+        self._task.resume()
+
+
+
+class _AgentMixin(object):
+    """
+    Base class offering facilities for L{Agent}-type classes.
+
+    @since: 11.1
+    """
+
+    def _connectAndRequest(self, method, uri, headers, bodyProducer,
+                           requestPath=None):
+        """
+        Internal helper to make the request.
+
+        @param requestPath: If specified, the path to use for the request
+            instead of the path extracted from C{uri}.
+        """
+        scheme, host, port, path = _parse(uri)
+        if requestPath is None:
+            requestPath = path
+        d = self._connect(scheme, host, port)
+        if headers is None:
+            headers = Headers()
+        if not headers.hasHeader('host'):
+            headers = headers.copy()
+            headers.addRawHeader(
+                'host', self._computeHostValue(scheme, host, port))
+        def cbConnected(proto):
+            return proto.request(
+                Request(method, requestPath, headers, bodyProducer))
+        d.addCallback(cbConnected)
+        return d
+
+
+    def _computeHostValue(self, scheme, host, port):
+        """
+        Compute the string to use for the value of the I{Host} header, based on
+        the given scheme, host name, and port number.
+        """
+        if (scheme, port) in (('http', 80), ('https', 443)):
+            return host
+        return '%s:%d' % (host, port)
+
+
+
+class Agent(_AgentMixin):
     """
     L{Agent} is a very basic HTTP client.  It supports I{HTTP} and I{HTTPS}
     scheme URIs (but performs no certificate checking by default).  It does not
@@ -633,13 +846,22 @@ class Agent(object):
     @ivar _contextFactory: A web context factory which will be used to create
         SSL context objects for any SSL connections the agent needs to make.
 
+    @ivar _connectTimeout: If not C{None}, the timeout passed to C{connectTCP}
+        or C{connectSSL} for specifying the connection timeout.
+
+    @ivar _bindAddress: If not C{None}, the address passed to C{connectTCP} or
+        C{connectSSL} for specifying the local address to bind to.
+
     @since: 9.0
     """
     _protocol = HTTP11ClientProtocol
 
-    def __init__(self, reactor, contextFactory=WebClientContextFactory()):
+    def __init__(self, reactor, contextFactory=WebClientContextFactory(),
+                 connectTimeout=None, bindAddress=None):
         self._reactor = reactor
         self._contextFactory = contextFactory
+        self._connectTimeout = connectTimeout
+        self._bindAddress = bindAddress
 
 
     def _wrapContextFactory(self, host, port):
@@ -651,9 +873,11 @@ class Agent(object):
         @param host: A C{str} giving the hostname which will be connected to in
             order to issue a request.
 
-        @param port: An C{int} giving the port number the connection will be on.
+        @param port: An C{int} giving the port number the connection will be
+            on.
 
-        @return: A context factory suitable to be passed to C{reactor.connectSSL}.
+        @return: A context factory suitable to be passed to
+            C{reactor.connectSSL}.
         """
         return _WebToNormalContextFactory(self._contextFactory, host, port)
 
@@ -670,16 +894,22 @@ class Agent(object):
         @param host: A C{str} giving the hostname which will be connected to in
             order to issue a request.
 
-        @param port: An C{int} giving the port number the connection will be on.
+        @param port: An C{int} giving the port number the connection will be
+            on.
 
         @return: A L{Deferred} which fires with a connected instance of
             C{self._protocol}.
         """
         cc = ClientCreator(self._reactor, self._protocol)
+        kwargs = {}
+        if self._connectTimeout is not None:
+            kwargs['timeout'] = self._connectTimeout
+        kwargs['bindAddress'] = self._bindAddress
         if scheme == 'http':
-            d = cc.connectTCP(host, port)
+            d = cc.connectTCP(host, port, **kwargs)
         elif scheme == 'https':
-            d = cc.connectSSL(host, port, self._wrapContextFactory(host, port))
+            d = cc.connectSSL(host, port, self._wrapContextFactory(host, port),
+                              **kwargs)
         else:
             d = defer.fail(SchemeNotSupported(
                     "Unsupported scheme: %r" % (scheme,)))
@@ -705,42 +935,342 @@ class Agent(object):
         @type bodyProducer: L{IBodyProducer} provider
 
         @return: A L{Deferred} which fires with the result of the request (a
-            L{Response} instance), or fails if there is a problem setting up a
-            connection over which to issue the request.  It may also fail with
-            L{SchemeNotSupported} if the scheme of the given URI is not
-            supported.
+            L{twisted.web.iweb.IResponse} provider), or fails if there is a
+            problem setting up a connection over which to issue the request.
+            It may also fail with L{SchemeNotSupported} if the scheme of the
+            given URI is not supported.
         @rtype: L{Deferred}
         """
-        scheme, host, port, path = _parse(uri)
-        d = self._connect(scheme, host, port)
+        return self._connectAndRequest(method, uri, headers, bodyProducer)
+
+
+
+class _HTTP11ClientFactory(protocol.ClientFactory):
+    """
+    A simple factory for L{HTTP11ClientProtocol}, used by L{ProxyAgent}.
+
+    @since: 11.1
+    """
+    protocol = HTTP11ClientProtocol
+
+
+
+class ProxyAgent(_AgentMixin):
+    """
+    An HTTP agent able to cross HTTP proxies.
+
+    @ivar _factory: The factory used to connect to the proxy.
+
+    @ivar _proxyEndpoint: The endpoint used to connect to the proxy, passing
+        the factory.
+
+    @since: 11.1
+    """
+
+    _factory = _HTTP11ClientFactory
+
+    def __init__(self, endpoint):
+        self._proxyEndpoint = endpoint
+
+
+    def _connect(self, scheme, host, port):
+        """
+        Ignore the connection to the expected host, and connect to the proxy
+        instead.
+        """
+        return self._proxyEndpoint.connect(self._factory())
+
+
+    def request(self, method, uri, headers=None, bodyProducer=None):
+        """
+        Issue a new request via the configured proxy.
+        """
+        return self._connectAndRequest(method, uri, headers, bodyProducer,
+                                       requestPath=uri)
+
+
+
+class _FakeUrllib2Request(object):
+    """
+    A fake C{urllib2.Request} object for C{cookielib} to work with.
+
+    @see: U{http://docs.python.org/library/urllib2.html#request-objects}
+
+    @type uri: C{str}
+    @ivar uri: Request URI.
+
+    @type headers: L{twisted.web.http_headers.Headers}
+    @ivar headers: Request headers.
+
+    @type type: C{str}
+    @ivar type: The scheme of the URI.
+
+    @type host: C{str}
+    @ivar host: The host[:port] of the URI.
+
+    @since: 11.1
+    """
+    def __init__(self, uri):
+        self.uri = uri
+        self.headers = Headers()
+        self.type, rest = splittype(self.uri)
+        self.host, rest = splithost(rest)
+
+
+    def has_header(self, header):
+        return self.headers.hasHeader(header)
+
+
+    def add_unredirected_header(self, name, value):
+        self.headers.addRawHeader(name, value)
+
+
+    def get_full_url(self):
+        return self.uri
+
+
+    def get_header(self, name, default=None):
+        headers = self.headers.getRawHeaders(name, default)
+        if headers is not None:
+            return headers[0]
+        return None
+
+
+    def get_host(self):
+        return self.host
+
+
+    def get_type(self):
+        return self.type
+
+
+    def is_unverifiable(self):
+        # In theory this shouldn't be hardcoded.
+        return False
+
+
+
+class _FakeUrllib2Response(object):
+    """
+    A fake C{urllib2.Response} object for C{cookielib} to work with.
+
+    @type response: C{twisted.web.iweb.IResponse}
+    @ivar response: Underlying Twisted Web response.
+
+    @since: 11.1
+    """
+    def __init__(self, response):
+        self.response = response
+
+
+    def info(self):
+        class _Meta(object):
+            def getheaders(zelf, name):
+                return self.response.headers.getRawHeaders(name, [])
+        return _Meta()
+
+
+
+class CookieAgent(object):
+    """
+    L{CookieAgent} extends the basic L{Agent} to add RFC-compliant
+    handling of HTTP cookies.  Cookies are written to and extracted
+    from a C{cookielib.CookieJar} instance.
+
+    The same cookie jar instance will be used for any requests through this
+    agent, mutating it whenever a I{Set-Cookie} header appears in a response.
+
+    @type _agent: L{twisted.web.client.Agent}
+    @ivar _agent: Underlying Twisted Web agent to issue requests through.
+
+    @type cookieJar: C{cookielib.CookieJar}
+    @ivar cookieJar: Initialized cookie jar to read cookies from and store
+        cookies to.
+
+    @since: 11.1
+    """
+    def __init__(self, agent, cookieJar):
+        self._agent = agent
+        self.cookieJar = cookieJar
+
+
+    def request(self, method, uri, headers=None, bodyProducer=None):
+        """
+        Issue a new request to the wrapped L{Agent}.
+
+        Send a I{Cookie} header if a cookie for C{uri} is stored in
+        L{CookieAgent.cookieJar}. Cookies are automatically extracted and
+        stored from requests.
+
+        If a C{'cookie'} header appears in C{headers} it will override the
+        automatic cookie header obtained from the cookie jar.
+
+        @see: L{Agent.request}
+        """
         if headers is None:
             headers = Headers()
-        if not headers.hasHeader('host'):
-            # This is a lot of copying.  It might be nice if there were a bit
-            # less.
-            headers = Headers(dict(headers.getAllRawHeaders()))
-            headers.addRawHeader(
-                'host', self._computeHostValue(scheme, host, port))
-        def cbConnected(proto):
-            return proto.request(Request(method, path, headers, bodyProducer))
-        d.addCallback(cbConnected)
+        lastRequest = _FakeUrllib2Request(uri)
+        # Setting a cookie header explicitly will disable automatic request
+        # cookies.
+        if not headers.hasHeader('cookie'):
+            self.cookieJar.add_cookie_header(lastRequest)
+            cookieHeader = lastRequest.get_header('Cookie', None)
+            if cookieHeader is not None:
+                headers = headers.copy()
+                headers.addRawHeader('cookie', cookieHeader)
+
+        d = self._agent.request(method, uri, headers, bodyProducer)
+        d.addCallback(self._extractCookies, lastRequest)
         return d
 
 
-    def _computeHostValue(self, scheme, host, port):
+    def _extractCookies(self, response, request):
         """
-        Compute the string to use for the value of the I{Host} header, based on
-        the given scheme, host name, and port number.
+        Extract response cookies and store them in the cookie jar.
+
+        @type response: L{twisted.web.iweb.IResponse}
+        @param response: Twisted Web response.
+
+        @param request: A urllib2 compatible request object.
         """
-        if (scheme, port) in (('http', 80), ('https', 443)):
-            return host
-        return '%s:%d' % (host, port)
+        resp = _FakeUrllib2Response(response)
+        self.cookieJar.extract_cookies(resp, request)
+        return response
+
+
+
+class GzipDecoder(proxyForInterface(IResponse)):
+    """
+    A wrapper for a L{Response} instance which handles gzip'ed body.
+
+    @ivar original: The original L{Response} object.
+
+    @since: 11.1
+    """
+
+    def __init__(self, response):
+        self.original = response
+        self.length = UNKNOWN_LENGTH
+
+
+    def deliverBody(self, protocol):
+        """
+        Override C{deliverBody} to wrap the given C{protocol} with
+        L{_GzipProtocol}.
+        """
+        self.original.deliverBody(_GzipProtocol(protocol))
+
+
+
+class _GzipProtocol(proxyForInterface(IProtocol)):
+    """
+    A L{Protocol} implementation which wraps another one, transparently
+    decompressing received data.
+
+    @ivar _zlibDecompress: A zlib decompress object used to decompress the data
+        stream.
+
+    @since: 11.1
+    """
+
+    def __init__(self, protocol):
+        self.original = protocol
+        self._zlibDecompress = zlib.decompressobj(16 + zlib.MAX_WBITS)
+
+
+    def dataReceived(self, data):
+        """
+        Decompress C{data} with the zlib decompressor, forwarding the raw data
+        to the original protocol.
+        """
+        try:
+            rawData = self._zlibDecompress.decompress(data)
+        except zlib.error:
+            raise ResponseFailed([failure.Failure()])
+        if rawData:
+            self.original.dataReceived(rawData)
+
+
+    def connectionLost(self, reason):
+        """
+        Forward the connection lost event, flushing remaining data from the
+        decompressor if any.
+        """
+        try:
+            rawData = self._zlibDecompress.flush()
+        except zlib.error:
+            raise ResponseFailed([reason, failure.Failure()])
+        if rawData:
+            self.original.dataReceived(rawData)
+        self.original.connectionLost(reason)
+
+
+
+class ContentDecoderAgent(object):
+    """
+    An L{Agent} wrapper to handle encoded content.
+
+    It takes care of declaring the support for content in the
+    I{Accept-Encoding} header, and automatically decompresses the received data
+    if it's effectively using compression.
+
+    @param decoders: A list or tuple of (name, decoder) objects. The name
+        declares which decoding the decoder supports, and the decoder must
+        return a response object when called/instantiated. For example,
+        C{(('gzip', GzipDecoder))}. The order determines how the decoders are
+        going to be advertized to the server.
+
+    @since: 11.1
+    """
+
+    def __init__(self, agent, decoders):
+        self._agent = agent
+        self._decoders = dict(decoders)
+        self._supported = ','.join([decoder[0] for decoder in decoders])
+
+
+    def request(self, method, uri, headers=None, bodyProducer=None):
+        """
+        Send a client request which declares supporting compressed content.
+
+        @see: L{Agent.request}.
+        """
+        if headers is None:
+            headers = Headers()
+        else:
+            headers = headers.copy()
+        headers.addRawHeader('accept-encoding', self._supported)
+        deferred = self._agent.request(method, uri, headers, bodyProducer)
+        return deferred.addCallback(self._handleResponse)
+
+
+    def _handleResponse(self, response):
+        """
+        Check if the response is encoded, and wrap it to handle decompression.
+        """
+        contentEncodingHeaders = response.headers.getRawHeaders(
+            'content-encoding', [])
+        contentEncodingHeaders = ','.join(contentEncodingHeaders).split(',')
+        while contentEncodingHeaders:
+            name = contentEncodingHeaders.pop().strip()
+            decoder = self._decoders.get(name)
+            if decoder is not None:
+                response = decoder(response)
+            else:
+                # Add it back
+                contentEncodingHeaders.append(name)
+                break
+        if contentEncodingHeaders:
+            response.headers.setRawHeaders(
+                'content-encoding', [','.join(contentEncodingHeaders)])
+        else:
+            response.headers.removeHeader('content-encoding')
+        return response
 
 
 
 __all__ = [
-    'PartialDownloadError',
-    'HTTPPageGetter', 'HTTPPageDownloader', 'HTTPClientFactory', 'HTTPDownloader',
-    'getPage', 'downloadPage',
-
-    'ResponseDone', 'Response', 'Agent']
+    'PartialDownloadError', 'HTTPPageGetter', 'HTTPPageDownloader',
+    'HTTPClientFactory', 'HTTPDownloader', 'getPage', 'downloadPage',
+    'ResponseDone', 'Response', 'ResponseFailed', 'Agent', 'CookieAgent',
+    'ProxyAgent', 'ContentDecoderAgent', 'GzipDecoder']
