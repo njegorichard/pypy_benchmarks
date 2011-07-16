@@ -9,13 +9,13 @@ import benchmarks
 import socket
 
 def perform_upload(pypy_c_path, args, force_host, options, res, revision,
-                   changed=True):
+                   changed=True, postfix=''):
     from saveresults import save
     project = 'PyPy'
     if "--jit" in args:
-        name = "pypy-c"
+        name = "pypy-c" + postfix
     else:
-        name = "pypy-c-jit"
+        name = "pypy-c-jit" + postfix
     if "psyco.sh" in pypy_c_path:
         name = "cpython psyco-profile"
         revision = 100
@@ -30,7 +30,7 @@ def perform_upload(pypy_c_path, args, force_host, options, res, revision,
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
                   options='', branch='trunk', args='', upload=False,
                   force_host=None, fast=False, baseline=sys.executable,
-                  full_store=False):
+                  full_store=False, postfix=''):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
     opts = ['-b', ','.join(benchmark_set), '--inherit_env=PATH',
@@ -60,9 +60,9 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
             argsbase, argschanged = args, args
         if 'pypy' in baseline:
             perform_upload(pypy_c_path, argsbase, force_host, options, res,
-                           revision, changed=False)
+                           revision, changed=False, postfix=postfix)
         perform_upload(pypy_c_path, argschanged, force_host, options, res,
-                       revision, changed=True)
+                       revision, changed=True, postfix=postfix)
 
 BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
                  'rietveld', 'html5lib', 'ai']
@@ -110,6 +110,8 @@ def main(argv):
                       help="Run shorter benchmark runs")
     parser.add_option("--full-store", default=False, action="store_true",
                       help="")
+    parser.add_option('--postfix', default='', action='store',
+                      help='Append a postfix to uploaded executable')
     options, args = parser.parse_args(argv)
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:
@@ -118,7 +120,8 @@ def main(argv):
     run_and_store(benchmarks, options.output_filename, options.pypy_c,
                   options.revision, args=options.args, upload=options.upload,
                   force_host=options.force_host, fast=options.fast,
-                  baseline=options.baseline, full_store=options.full_store)
+                  baseline=options.baseline, full_store=options.full_store,
+                  postfix=options.postfix)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
