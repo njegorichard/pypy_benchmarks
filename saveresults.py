@@ -8,7 +8,8 @@ from datetime import datetime
 
 SPEEDURL = "http://speed.pypy.org/"
 
-def save(project, revision, results, options, interpreter, host, testing=False):
+def save(project, revision, results, options, interpreter, host, testing=True,
+         changed=True):
     testparams = []
     #Parse data
     data = {}
@@ -20,9 +21,15 @@ def save(project, revision, results, options, interpreter, host, testing=False):
         results = b[2]
         value = 0
         if res_type == "SimpleComparisonResult":
-            value = results['changed_time']
+            if changed:
+                value = results['changed_time']
+            else:
+                value = results['base_time']
         elif res_type == "ComparisonResult":
-            value = results['avg_changed']
+            if changed:
+                value = results['avg_changed']
+            else:
+                value = results['avg_base']
         else:
             print("ERROR: result type unknown " + b[1])
             return 1
@@ -35,7 +42,10 @@ def save(project, revision, results, options, interpreter, host, testing=False):
             'result_value': value,
         }
         if res_type == "ComparisonResult":
-            data['std_dev'] = results['std_changed']
+            if changed:
+                data['std_dev'] = results['std_changed']
+            else:
+                data['std_dev'] = results['std_base']
         if testing: testparams.append(data)
         else: error |= send(data)
     if error:

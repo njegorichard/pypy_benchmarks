@@ -2,12 +2,30 @@
 """ Usage: runner.py <result filename> <path to pypy-c> <revnumber>
 """
 
-import os
 import json
 import sys
 from unladen_swallow import perf
 import benchmarks
 import socket
+
+def perform_upload(pypy_c_path, args, force_host, options, res, revision,
+                   changed=True):
+    from saveresults import save
+    project = 'PyPy'
+    if "--jit" in args:
+        name = "pypy-c"
+    else:
+        name = "pypy-c-jit"
+    if "psyco.sh" in pypy_c_path:
+        name = "cpython psyco-profile"
+        revision = 100
+        project = 'cpython'
+    if force_host is not None:
+        host = force_host
+    else:
+        host = socket.gethostname()
+    print save(project, revision, res, options, name, host, changed=changed)
+
         
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
                   options='', branch='trunk', args='', upload=False,
@@ -36,21 +54,15 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
         }))
     f.close()
     if upload:
-        from saveresults import save
-        project = 'PyPy'
-        if "--jit threshold" in args:
-            name = "pypy-c"
+        if ',' in args:
+            argsbase, argschanged = args.split(',')
         else:
-            name = "pypy-c-jit"
-        if "psyco.sh" in pypy_c_path:
-            name = "cpython psyco-profile"
-            revision = 100
-            project = 'cpython'
-        if force_host is not None:
-            host = force_host
-        else:
-            host = socket.gethostname()
-        save(project, revision, res, options, name, host)
+            argsbase, argschanged = args, args
+        if 'pypy' in baseline:
+            perform_upload(pypy_c_path, argsbase, force_host, options, res,
+                           revision, changed=False)
+        perform_upload(pypy_c_path, argschanged, force_host, options, res,
+                       revision, changed=True)
 
 BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
                  'rietveld', 'html5lib', 'ai']
