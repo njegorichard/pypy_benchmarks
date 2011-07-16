@@ -8,7 +8,7 @@ from datetime import datetime
 
 SPEEDURL = "http://speed.pypy.org/"
 
-def save(project, revision, results, options, interpreter, host, testing=True,
+def save(project, revision, results, options, interpreter, host, testing=False,
          changed=True):
     testparams = []
     #Parse data
