@@ -29,7 +29,7 @@ class GVector(object):
 
     def __add__(self, other):
         if not isinstance(other, GVector):
-            raise exceptions.ValueError, \
+            raise ValueError, \
                     "Can't add GVector to " + str(type(other))
         v = GVector(self.x + other.x, self.y + other.y, self.z + other.z)
         return v
@@ -71,13 +71,13 @@ degree of the Spline."""
             self.knots = GetKnots(points, degree)
         else:
             if len(points) > len(knots) - degree + 1:
-                raise exceptions.ValueError, "too many control points"
+                raise ValueError, "too many control points"
             elif len(points) < len(knots) - degree + 1:
-                raise exceptions.ValueError, "not enough control points"
+                raise ValueError, "not enough control points"
             last = knots[0]
             for cur in knots[1:]:
                 if cur < last:
-                    raise exceptions.ValueError, \
+                    raise ValueError, \
                           "knots not strictly increasing"
                 last = cur
             self.knots = knots
@@ -93,7 +93,7 @@ degree of the Spline."""
         """Calculates a point of the B-Spline using de Boors Algorithm"""
         dom = self.GetDomain()
         if u < dom[0] or u > dom[1]:
-            raise exceptions.ValueError, "Function value not in domain"
+            raise ValueError, "Function value not in domain"
         if u == dom[0]:
             return self.points[0]
         if u == dom[1]:
