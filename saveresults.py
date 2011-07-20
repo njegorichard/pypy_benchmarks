@@ -40,6 +40,7 @@ def save(project, revision, results, options, interpreter, host, testing=False,
             'benchmark': bench_name,
             'environment': host,
             'result_value': value,
+            'branch': 'default',
         }
         if res_type == "ComparisonResult":
             if changed:
@@ -71,6 +72,7 @@ def send(data):
             response += '  Reason: ' + str(e.reason)
         elif hasattr(e, 'code'):
             response = '\n  The server couldn\'t fulfill the request'
+        response = "\n".join([response] + e.readlines())
         print("Server (%s) response: %s" % (SPEEDURL, response))
         print('  Error code: %s\n' % (e,))
         return 1
