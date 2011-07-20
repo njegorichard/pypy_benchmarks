@@ -28,7 +28,7 @@ def perform_upload(pypy_c_path, args, force_host, options, res, revision,
 
         
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
-                  options='', branch='trunk', args='', upload=False,
+                  options='', branch='default', args='', upload=False,
                   force_host=None, fast=False, baseline=sys.executable,
                   full_store=False, postfix=''):
     funcs = perf.BENCH_FUNCS.copy()
@@ -90,7 +90,7 @@ def main(argv):
                       help='specify output filename to store resulting json')
     parser.add_option('--options', default='', action='store',
                       help='a string describing picked options, no spaces')
-    parser.add_option('--branch', default='trunk', action='store',
+    parser.add_option('--branch', default='default', action='store',
                       help="pypy's branch")
     parser.add_option('--baseline', default=sys.executable, action='store',
                       help='baseline interpreter, defaults to host one')
