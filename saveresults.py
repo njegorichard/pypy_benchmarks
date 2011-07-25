@@ -49,6 +49,14 @@ def save(project, revision, results, options, interpreter, host, testing=False,
                 value = results['avg_changed']
             else:
                 value = results['avg_base']
+        elif res_type == "RawResult":
+            if changed:
+                value = results["changed_times"]
+            else:
+                value = results["base_times"]
+            if value:
+                assert len(value) == 1
+                value = value[0]
         else:
             print("ERROR: result type unknown " + b[1])
             return 1
@@ -61,6 +69,9 @@ def save(project, revision, results, options, interpreter, host, testing=False,
             'result_value': value,
             'branch': 'default',
         }
+        if value is None:
+            print "Ignoring skipped result", data
+            continue
         if res_type == "ComparisonResult":
             if changed:
                 data['std_dev'] = results['std_changed']
@@ -91,8 +102,10 @@ def send(data):
             response += '  Reason: ' + str(e.reason)
         elif hasattr(e, 'code'):
             response = '\n  The server couldn\'t fulfill the request'
-        response = "\n".join([response] + e.readlines())
-        print("Server (%s) response: %s" % (SPEEDURL, response))
+        response = "".join([response] + e.readlines())
+        with open('error.html', 'w') as error_file:
+            error_file.write(response)
+        print("Server (%s) response written to error.html" % (SPEEDURL,))
         print('  Error code: %s\n' % (e,))
         return 1
     print "saved correctly!\n"

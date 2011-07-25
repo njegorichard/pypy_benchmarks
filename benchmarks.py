@@ -58,3 +58,75 @@ _register_new_bm('spitfire', 'spitfire', globals(),
 _register_new_bm('spitfire', 'spitfire_cstringio', globals(),
     extra_args=['--benchmark=python_cstringio'])
 
+
+
+# =========================================================================
+# translate.py benchmark
+# =========================================================================
+
+def parse_timer(lines):
+    prefix = '[Timer] '
+    n = len(prefix)
+    lines = [line[n:] for line in lines if line.startswith(prefix)]
+    timings = []
+    for line in lines:
+        if (line == 'Timings:' or
+            line.startswith('============') or
+            line.startswith('Total:')):
+            continue
+        name, _, time = map(str.strip, line.partition('---'))
+        assert time.endswith(' s')
+        time = float(time[:-2])
+        timings.append((name, time))
+    return timings
+
+def test_parse_timer():
+    lines = [
+        'foobar',
+        '....',
+        '[Timer] Timings:',
+        '[Timer] annotate                       --- 1.3 s',
+        '[Timer] rtype_lltype                   --- 4.6 s',
+        '[Timer] database_c                     --- 0.4 s',
+        '[Timer] ========================================',
+        '[Timer] Total:                         --- 6.3 s',
+        'hello world',
+        '...',
+        ]
+    timings = parse_timer(lines)
+    assert timings == [
+        ('annotate', 1.3),
+        ('rtype_lltype', 4.6),
+        ('database_c', 0.4)
+        ]
+
+def BM_translate(base_python, changed_python, options):
+    """
+    Run translate.py and returns a benchmark result for each of the phases.
+    Note that we run it only with ``base_python`` (which corresponds to
+    pypy-c-jit in the nightly benchmarks, we are not interested in
+    ``changed_python`` (aka pypy-c-nojit) right now.
+    """
+    from unladen_swallow.perf import RawResult
+    import subprocess
+
+    translate_py = relative('lib/pypy/pypy/translator/goal/translate.py')
+    targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
+    args = base_python + [translate_py,
+            '--source', '--dont-write-c-files',
+            targetnop,
+            ]
+    try:
+        output = subprocess.check_output(args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        print e.output
+        raise
+
+    lines = output.splitlines()
+    timings = parse_timer(lines)
+
+    result = []
+    for name, time in timings:
+        data = RawResult([time], None)
+        result.append((name, data))
+    return result

@@ -1604,8 +1604,15 @@ def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
     for name in sorted(should_run):
         func = bench_funcs[name]
         print "Running %s..." % name
-        results.append((name, func(base_cmd_prefix, changed_cmd_prefix,
-                                   options)))
+        # PyPy specific modification: let the func to return a list of results
+        # for sub-benchmarks
+        bench_result = func(base_cmd_prefix, changed_cmd_prefix, options)
+        if isinstance(bench_result, list):
+            for subname, subresult in bench_result:
+                fullname = '%s_%s' % (name, subname)
+                results.append((fullname, subresult))
+        else:
+            results.append((name, bench_result))
 
     print
     print "Report on %s" % " ".join(platform.uname())
