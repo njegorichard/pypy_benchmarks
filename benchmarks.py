@@ -116,11 +116,8 @@ def BM_translate(base_python, changed_python, options):
     import subprocess
 
     translate_py = relative('lib/pypy/pypy/translator/goal/translate.py')
-    targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
-    args = base_python + [translate_py,
-            '--source', '--dont-write-c-files',
-            targetnop,
-            ]
+    #targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
+    args = base_python + [translate_py, '--source', '--dont-write-c-files']
     try:
         output = subprocess.check_output(args, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError, e:
