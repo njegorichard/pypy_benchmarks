@@ -75,6 +75,9 @@ def parse_timer(lines):
             line.startswith('Total:')):
             continue
         name, _, time = map(str.strip, line.partition('---'))
+        name = name.replace('_lltype', '')
+        name = name.replace('_c', '')
+        name = name.replace('stackcheckinsertion', 'stackcheck')
         assert time.endswith(' s')
         time = float(time[:-2])
         timings.append((name, time))
@@ -87,6 +90,7 @@ def test_parse_timer():
         '[Timer] Timings:',
         '[Timer] annotate                       --- 1.3 s',
         '[Timer] rtype_lltype                   --- 4.6 s',
+        '[Timer] stackcheckinsertion_lltype     --- 2.3 s',
         '[Timer] database_c                     --- 0.4 s',
         '[Timer] ========================================',
         '[Timer] Total:                         --- 6.3 s',
@@ -96,8 +100,9 @@ def test_parse_timer():
     timings = parse_timer(lines)
     assert timings == [
         ('annotate', 1.3),
-        ('rtype_lltype', 4.6),
-        ('database_c', 0.4)
+        ('rtype', 4.6),
+        ('stackcheck', 2.3),
+        ('database', 0.4)
         ]
 
 def BM_translate(base_python, changed_python, options):
@@ -130,3 +135,4 @@ def BM_translate(base_python, changed_python, options):
         data = RawResult([time], None)
         result.append((name, data))
     return result
+BM_translate.benchmark_name = 'trans'

@@ -1607,6 +1607,7 @@ def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
         # PyPy specific modification: let the func to return a list of results
         # for sub-benchmarks
         bench_result = func(base_cmd_prefix, changed_cmd_prefix, options)
+        name = getattr(func, 'benchmark_name', name)
         if isinstance(bench_result, list):
             for subname, subresult in bench_result:
                 fullname = '%s_%s' % (name, subname)
