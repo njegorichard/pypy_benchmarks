@@ -117,7 +117,7 @@ def BM_translate(base_python, changed_python, options):
 
     translate_py = relative('lib/pypy/pypy/translator/goal/translate.py')
     #targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
-    args = base_python + [translate_py, '--source', '--dont-write-c-files']
+    args = base_python + [translate_py, '--source', '--dont-write-c-files', '-O2']
     proc = subprocess.Popen(args, stderr=subprocess.PIPE)
     out, err = proc.communicate()
     retcode = proc.poll()
