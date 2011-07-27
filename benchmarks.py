@@ -1,5 +1,5 @@
-
 import os
+import logging
 from unladen_swallow.perf import SimpleBenchmark, MeasureGeneric
 
 def relative(*args):
@@ -118,6 +118,7 @@ def BM_translate(base_python, changed_python, options):
     translate_py = relative('lib/pypy/pypy/translator/goal/translate.py')
     #targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
     args = base_python + [translate_py, '--source', '--dont-write-c-files', '-O2']
+    logging.info('Running %s', ' '.join(args))
     proc = subprocess.Popen(args, stderr=subprocess.PIPE)
     out, err = proc.communicate()
     retcode = proc.poll()
