@@ -13,9 +13,9 @@ def perform_upload(pypy_c_path, args, force_host, options, res, revision,
     from saveresults import save
     project = 'PyPy'
     if "--jit" in args:
-        name = "pypy-c"
+        name = "pypy-c" + postfix
     else:
-        name = "pypy-c-jit"
+        name = "pypy-c-jit" + postfix
     if "psyco.sh" in pypy_c_path:
         name = "cpython psyco-profile"
         revision = 100
@@ -24,7 +24,6 @@ def perform_upload(pypy_c_path, args, force_host, options, res, revision,
         host = force_host
     else:
         host = socket.gethostname()
-    host += postfix
     print save(project, revision, res, options, name, host, changed=changed)
 
         
