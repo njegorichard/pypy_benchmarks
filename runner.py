@@ -9,7 +9,7 @@ import benchmarks
 import socket
 
 def perform_upload(pypy_c_path, args, force_host, options, res, revision,
-                   changed=True, postfix=''):
+                   changed=True, postfix='', branch='default'):
     from saveresults import save
     project = 'PyPy'
     if "--jit" in args:
@@ -24,7 +24,7 @@ def perform_upload(pypy_c_path, args, force_host, options, res, revision,
         host = force_host
     else:
         host = socket.gethostname()
-    print save(project, revision, res, options, name, host, changed=changed)
+    print save(project, revision, res, options, name, host, changed=changed, branch=branch)
 
         
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
@@ -60,9 +60,9 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
             argsbase, argschanged = args, args
         if 'pypy' in baseline:
             perform_upload(pypy_c_path, argsbase, force_host, options, res,
-                           revision, changed=False, postfix=postfix)
+                           revision, changed=False, postfix=postfix, branch=branch)
         perform_upload(pypy_c_path, argschanged, force_host, options, res,
-                       revision, changed=True, postfix=postfix)
+                       revision, changed=True, postfix=postfix, branch=branch)
 
 BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
                  'rietveld', 'html5lib', 'ai']
@@ -121,7 +121,7 @@ def main(argv):
                   options.revision, args=options.args, upload=options.upload,
                   force_host=options.force_host, fast=options.fast,
                   baseline=options.baseline, full_store=options.full_store,
-                  postfix=options.postfix)
+                  postfix=options.postfix, branch=options.branch)
 
 if __name__ == '__main__':
     main(sys.argv[1:])

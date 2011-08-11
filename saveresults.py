@@ -28,7 +28,7 @@ import optparse
 SPEEDURL = "http://speed.pypy.org/"
 
 def save(project, revision, results, options, interpreter, host, testing=False,
-         changed=True):
+         changed=True, branch='default'):
     testparams = []
     #Parse data
     data = {}
@@ -67,7 +67,7 @@ def save(project, revision, results, options, interpreter, host, testing=False,
             'benchmark': bench_name,
             'environment': host,
             'result_value': value,
-            'branch': 'default',
+            'branch': branch,
         }
         if value is None:
             print "Ignoring skipped result", data
@@ -103,6 +103,7 @@ def send(data):
         elif hasattr(e, 'code'):
             response = '\n  The server couldn\'t fulfill the request'
         response = "".join([response] + e.readlines())
+        print response
         with open('error.html', 'w') as error_file:
             error_file.write(response)
         print("Server (%s) response written to error.html" % (SPEEDURL,))
