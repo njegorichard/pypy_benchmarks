@@ -113,6 +113,11 @@ def main(argv):
     parser.add_option('--postfix', default='', action='store',
                       help='Append a postfix to uploaded executable')
     options, args = parser.parse_args(argv)
+    #
+    # use 'default' if the branch is empty
+    if not options.branch:
+        options.branch = 'default'
+    
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:
         if benchmark not in BENCHMARK_SET:
