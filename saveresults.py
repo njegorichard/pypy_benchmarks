@@ -21,7 +21,7 @@ Example usage:
 """
 
 import sys
-import urllib, urllib2
+import urllib, urllib2, time
 from datetime import datetime
 import optparse
 
@@ -93,9 +93,19 @@ def send(data):
     info += str(data['commitid']) + ", benchmark " + data['benchmark']
     print(info)
     try:
-        f = urllib2.urlopen(SPEEDURL + 'result/add/', params)
-        response = f.read()
-        f.close()
+        retries = [10, 20, 30, 60, 150, 300]
+        while True:
+            try:
+                f = urllib2.urlopen(SPEEDURL + 'result/add/', params)
+                response = f.read()
+                f.close()
+                break
+            except urllib2.URLError:
+                if not retries:
+                    raise
+                d = retries.pop(0)
+                print "retrying in %d seconds..." % d
+                time.sleep(d)
     except urllib2.URLError, e:
         if hasattr(e, 'reason'):
             response = '\n  We failed to reach a server\n'
