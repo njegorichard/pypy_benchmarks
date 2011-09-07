@@ -93,7 +93,7 @@ def send(data):
     info += str(data['commitid']) + ", benchmark " + data['benchmark']
     print(info)
     try:
-        retries = [10, 20, 30, 60, 150, 300]
+        retries = [1, 2, 3, 6]
         while True:
             try:
                 f = urllib2.urlopen(SPEEDURL + 'result/add/', params)
