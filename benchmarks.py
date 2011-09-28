@@ -42,11 +42,12 @@ TWISTED = [relative('lib/twisted-trunk'), relative('lib/zope.interface-3.5.3/src
 opts = {
     'gcbench' : {'iteration_scaling' : .10},
     'bm_mako' : {'bm_env': {'PYTHONPATH': relative('lib/mako')}},
+    'bm_chameleon': {'bm_env': {'PYTHONPATH': relative('lib/chameleon/src')}},
 }
 
 for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco', 'go', 'pyflate-fast',
-             'raytrace-simple', 'crypto_pyaes', 'bm_mako']:
+             'raytrace-simple', 'crypto_pyaes', 'bm_mako', 'bm_chameleon']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
 for name in ['names', 'iteration', 'tcp', 'pb']:#, 'web', 'accepts']:
     iteration_scaling = 1.0
