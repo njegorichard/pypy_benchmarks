@@ -45,6 +45,12 @@ opts = {
     'bm_chameleon': {'bm_env': {'PYTHONPATH': relative('lib/chameleon/src')}},
 }
 
+for name in ['expand', 'integrate', 'sum', 'str']:
+    _register_new_bm('bm_sympy', 'sympy_' + name,
+                     globals(), bm_env={'PYTHONPATH': relative('lib/sympy')},
+                     extra_args=['--benchmark=' + name],
+                     iteration_scaling=0.1)
+
 for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco', 'go', 'pyflate-fast',
              'raytrace-simple', 'crypto_pyaes', 'bm_mako', 'bm_chameleon']:
