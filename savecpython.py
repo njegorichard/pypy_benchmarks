@@ -4,11 +4,13 @@ import sys
 import json
 import urllib, urllib2
 from datetime import datetime
+import optparse
 
 #SPEEDURL = 'http://127.0.0.1:8000/'
 SPEEDURL = 'http://speed.pypy.org/'
 
-def save(project, revision, results, options, executable, host, testing=False):
+def save(project, revision, results, options, executable, host, testing=False,
+         base=False):
     testparams = []
     #Parse data
     data = {}
@@ -20,9 +22,15 @@ def save(project, revision, results, options, executable, host, testing=False):
         results = b[2]
         value = 0
         if res_type == "SimpleComparisonResult":
-            value = results['base_time']
+            if base:
+                value = results['base_time']
+            else:
+                value = results['changed_time']
         elif res_type == "ComparisonResult":
-            value = results['avg_base']
+            if base:
+                value = results['avg_base']
+            else:
+                value = results['avg_changed']
         else:
             print("ERROR: result type unknown " + b[1])
             return 1
@@ -36,7 +44,10 @@ def save(project, revision, results, options, executable, host, testing=False):
             'result_date': current_date,
         }
         if res_type == "ComparisonResult":
-            data['std_dev'] = results['std_changed']
+            if base:
+                data['std_dev'] = results['std_base']
+            else:
+                data['std_dev'] = results['std_changed']
         if testing: testparams.append(data)
         else: send(data)
     if testing: return testparams
@@ -62,9 +73,19 @@ def send(data):
             response = '\n  The server couldn\'t fulfill the request\n'
             response += '  Error code: ' + str(e)
         print("Server (%s) response: %s\n" % (SPEEDURL, response))
+        if hasattr(e, 'fp'):
+            print e.fp.read(), "\n"
         return 1
     return 0
 
 if __name__ == '__main__':
-    results = json.load(open(sys.argv[1]))['results']
-    save('cpython', 100, results, None, 'cpython', 'tannit', testing=False)
+    parser = optparse.OptionParser()
+    parser.add_option('-b', '--base', action='store_true',
+                      help='take base values instead of modified')
+    options, args = parser.parse_args(sys.argv)
+    if len(args) != 2:
+        print parser.usage
+        sys.exit(1)
+    results = json.load(open(args[1]))['results']
+    save('cpython', 100, results, None, 'cpython', 'tannit', testing=False,
+         base=options.base)
