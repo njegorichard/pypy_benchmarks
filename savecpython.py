@@ -21,11 +21,14 @@ def save(project, revision, results, options, executable, host, testing=False,
         res_type = b[1]
         results = b[2]
         value = 0
-        if res_type == "SimpleComparisonResult":
+        if res_type == "SimpleComparisonResult" or res_type == 'RawResult':
             if base:
-                value = results['base_time']
+                value = results['base_times']
             else:
-                value = results['changed_time']
+                value = results['changed_times']
+            if value is None:
+                continue
+            value = value[0]
         elif res_type == "ComparisonResult":
             if base:
                 value = results['avg_base']
@@ -42,6 +45,7 @@ def save(project, revision, results, options, executable, host, testing=False,
             'environment': host,
             'result_value': value,
             'result_date': current_date,
+            'branch': 'default',
         }
         if res_type == "ComparisonResult":
             if base:
@@ -82,10 +86,13 @@ if __name__ == '__main__':
     parser = optparse.OptionParser()
     parser.add_option('-b', '--base', action='store_true',
                       help='take base values instead of modified')
+    parser.add_option('--revision', help='revision number', type=int,
+                      default=100)
     options, args = parser.parse_args(sys.argv)
     if len(args) != 2:
         print parser.usage
         sys.exit(1)
     results = json.load(open(args[1]))['results']
-    save('cpython', 100, results, None, 'cpython', 'tannit', testing=False,
+    save('cpython', options.revision, results, None, 'cpython', 'tannit',
+         testing=False,
          base=options.base)
