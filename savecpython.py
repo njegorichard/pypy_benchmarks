@@ -86,7 +86,7 @@ if __name__ == '__main__':
     parser = optparse.OptionParser()
     parser.add_option('-b', '--base', action='store_true',
                       help='take base values instead of modified')
-    parser.add_option('--revision', help='revision number', type=int,
+    parser.add_option('--revision', help='revision number (100 for cpythono 2.6.2, 101 for 2.7.2, edit admin interface to add more)', type=int,
                       default=100)
     options, args = parser.parse_args(sys.argv)
     if len(args) != 2:
