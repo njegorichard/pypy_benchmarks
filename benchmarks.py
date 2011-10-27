@@ -110,7 +110,6 @@ def test_parse_timer():
     assert timings == [
         ('annotate', 1.3),
         ('rtype', 4.6),
-        ('stackcheck', 2.3),
         ('database', 0.4)
         ]
 
