@@ -81,12 +81,12 @@ def parse_timer(lines):
     for line in lines:
         if (line == 'Timings:' or
             line.startswith('============') or
-            line.startswith('Total:')):
+            line.startswith('Total:') or
+            'stackcheck' in line):
             continue
         name, _, time = map(str.strip, line.partition('---'))
         name = name.replace('_lltype', '')
         name = name.replace('_c', '')
-        name = name.replace('stackcheckinsertion', 'stackcheck')
         assert time.endswith(' s')
         time = float(time[:-2])
         timings.append((name, time))
