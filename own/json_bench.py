@@ -26,7 +26,7 @@ if __name__ == '__main__':
     import util, optparse
     parser = optparse.OptionParser(
         usage="%prog [options]",
-        description="Test the performance of the Go benchmark")
+        description="Test the performance of the JSON benchmark")
     util.add_standard_options_to(parser)
     options, args = parser.parse_args()
 
