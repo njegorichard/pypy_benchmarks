@@ -80,7 +80,7 @@ def main(argv):
                       default=','.join(BENCHMARK_SET),
                       help=("Comma-separated list of benchmarks to run"
                             " Valid benchmarks are: " +
-                            ", ".join(BENCHMARK_SET)))
+                            ", ".join(sorted(BENCHMARK_SET))))
     parser.add_option('-p', '--pypy-c', default=sys.executable,
                       help='pypy-c or other modified python to run against')
     parser.add_option('-r', '--revision', default=0, action="store",
