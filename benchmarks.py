@@ -153,7 +153,10 @@ def BM_cpython_doc(base_python, changed_python, options):
     for python in [base_python, changed_python]:
         maindir = relative('lib/cpython-doc')
         builddir = os.path.join(os.path.join(maindir, 'tools'), 'build')
-        shutil.rmtree(builddir)
+        try:
+            shutil.rmtree(builddir)
+        except OSError:
+            pass
         build = relative('lib/cpython-doc/tools/sphinx-build.py')
         os.mkdir(builddir)
         docdir = os.path.join(builddir, 'doctrees')
