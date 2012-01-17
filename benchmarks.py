@@ -161,14 +161,14 @@ def BM_cpython_doc(base_python, changed_python, options):
         htmldir = os.path.join(builddir, 'html')
         os.mkdir(htmldir)
         args = base_python + [build, '-b', 'html', '-d', docdir, maindir, htmldir]
-        proc = subprocess.Popen(args, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         out, err = proc.communicate()
         retcode = proc.poll()
         if retcode != 0:
             print out
             print err
             raise Exception("sphinx-build.py failed")
-        t.append(float(out.splitlines(-1).strip()))
+        t.append(float(out.splitlines()[-1]))
     return RawResult([t[0]], [t[1]])
     
 BM_cpython_doc.benchmark_name = 'sphinx'

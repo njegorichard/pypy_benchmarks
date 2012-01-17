@@ -1,2 +1,3 @@
 .*\.py[co]
 .*~
+lib/cpython-doc/tools/build
