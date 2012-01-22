@@ -12,20 +12,25 @@ Revision, name and host are required.
 
 Example usage:
 
-  $ ./saveresults.py result.json -r '45757:fabe4fc0dc08' -n pypy-c-jit -H tannit
-  
-  OR
-  
-  $ ./saveresults.py result.json -r '45757:fabe4fc0dc08' -n pypy-c-jit-64 -H tannit
+  $ ./saveresults.py result.json -r '45757:fabe4fc0dc08' -n pypy-c-jit \
+    -H tannit
 
+  OR
+
+  $ ./saveresults.py result.json -r '45757:fabe4fc0dc08' -n pypy-c-jit-64 \
+    -H tannit
 """
 
-import sys
-import urllib, urllib2, time
 from datetime import datetime
 import optparse
+import sys
+import time
+import urllib
+import urllib2
+
 
 SPEEDURL = "http://speed.pypy.org/"
+
 
 def save(project, revision, results, options, interpreter, host, testing=False,
          changed=True, branch='default'):
@@ -33,7 +38,7 @@ def save(project, revision, results, options, interpreter, host, testing=False,
     #Parse data
     data = {}
     error = 0
-        
+
     for b in results:
         bench_name = b[0]
         res_type = b[1]
@@ -77,20 +82,27 @@ def save(project, revision, results, options, interpreter, host, testing=False,
                 data['std_dev'] = results['std_changed']
             else:
                 data['std_dev'] = results['std_base']
-        if testing: testparams.append(data)
-        else: error |= send(data)
+        if testing:
+            testparams.append(data)
+        else:
+            error |= send(data)
+
     if error:
         raise IOError("Saving failed.  See messages above.")
-    if testing: return testparams
-    else: return 0
-    
+    if testing:
+        return testparams
+    else:
+        return 0
+
+
 def send(data):
     #save results
     params = urllib.urlencode(data)
     f = None
     response = "None"
-    info = str(datetime.today()) + ": Saving result for " + data['executable'] + " revision "
-    info += str(data['commitid']) + ", benchmark " + data['benchmark']
+    info = ("%s: Saving result for %s revision %s, benchmark %s" %
+            (str(datetime.today()), data['executable'],
+             str(data['commitid']), data['benchmark']))
     print(info)
     try:
         retries = [1, 2, 3, 6]
@@ -136,7 +148,8 @@ def main(jsonfile, options):
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(usage="%prog result.json [options]")
-    parser.add_option('-r', '--revision', dest='revision', default=None, type=str)
+    parser.add_option('-r', '--revision', dest='revision',
+                      default=None, type=str)
     parser.add_option('-n', '--name', dest='name', default=None, type=str)
     parser.add_option('-H', '--host', dest='host', default=None, type=str)
     parser.add_option('-b', '--baseline', dest='changed', default=True,
@@ -145,8 +158,8 @@ if __name__ == '__main__':
     parser.format_description = lambda fmt: __doc__
     parser.description = __doc__
     options, args = parser.parse_args()
-    if options.revision is None or options.name is None or options.host is None or \
-            len(args) != 1:
+    if (options.revision is None or options.name is None or
+        options.host is None or len(args) != 1):
         parser.print_help()
         sys.exit(2)
     main(args[0], options)

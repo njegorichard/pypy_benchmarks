@@ -8,6 +8,7 @@ from unladen_swallow import perf
 import benchmarks
 import socket
 
+
 def perform_upload(pypy_c_path, args, force_host, options, res, revision,
                    changed=True, postfix='', branch='default'):
     from saveresults import save
@@ -24,9 +25,10 @@ def perform_upload(pypy_c_path, args, force_host, options, res, revision,
         host = force_host
     else:
         host = socket.gethostname()
-    print save(project, revision, res, options, name, host, changed=changed, branch=branch)
+    print save(project, revision, res, options, name, host, changed=changed,
+               branch=branch)
 
-        
+
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
                   options='', branch='default', args='', upload=False,
                   force_host=None, fast=False, baseline=sys.executable,
@@ -47,10 +49,10 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
     res = [(name, result.__class__.__name__, result.__dict__)
            for name, result in results]
     f.write(json.dumps({
-        'revision' : revision,
-        'results' : res,
-        'options' : options,
-        'branch'  : branch,
+        'revision': revision,
+        'results': res,
+        'options': options,
+        'branch': branch,
         }))
     f.close()
     if upload:
@@ -60,16 +62,20 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
             argsbase, argschanged = args, args
         if 'pypy' in baseline:
             perform_upload(pypy_c_path, argsbase, force_host, options, res,
-                           revision, changed=False, postfix=postfix, branch=branch)
+                           revision, changed=False, postfix=postfix,
+                           branch=branch)
         perform_upload(pypy_c_path, argschanged, force_host, options, res,
                        revision, changed=True, postfix=postfix, branch=branch)
+
 
 BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
                  'rietveld', 'html5lib', 'ai']
 BENCHMARK_SET += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
 
+
 class WrongBenchmark(Exception):
     pass
+
 
 def main(argv):
     import optparse
@@ -99,9 +105,9 @@ def main(argv):
                             " If there is a comma in this option's value, the"
                             " arguments before the comma (interpreted as a"
                             " space-separated list) are passed to the baseline"
-                            " python, and the arguments after are passed to the"
-                            " changed python. If there's no comma, the same"
-                            " options are passed to both."))
+                            " python, and the arguments after are passed to"
+                            " the changed python. If there's no comma, the"
+                            " same options are passed to both."))
     parser.add_option("--upload", default=False, action="store_true",
                       help="Upload results to speed.pypy.org")
     parser.add_option("--force-host", default=None, action="store",
@@ -117,7 +123,7 @@ def main(argv):
     # use 'default' if the branch is empty
     if not options.branch:
         options.branch = 'default'
-    
+
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:
         if benchmark not in BENCHMARK_SET:
