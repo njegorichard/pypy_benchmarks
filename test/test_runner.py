@@ -1,8 +1,8 @@
-
 import py
 import json
 import sys
 from runner import run_and_store
+
 
 def test_run_and_store():
     tmpdir = py.test.ensuretemp('bench_runner')

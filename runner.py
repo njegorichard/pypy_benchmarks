@@ -10,73 +10,63 @@ import benchmarks
 from saveresults import save
 from unladen_swallow import perf
 
+BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
+                 'rietveld', 'html5lib', 'ai']
+BENCHMARK_SET += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
 
-def perform_upload(pypy_c_path, args, force_host, options, res, revision,
-                   changed=True, postfix='', branch='default', project='PyPy',
-                   executable=None):
-    if executable is None:
-        if "--jit" in args:
-            executable = "pypy-c" + postfix
-        else:
-            executable = "pypy-c-jit" + postfix
+# executeablenames
+EX_CPY_PSYCO = "cpython psyco-profile"
+EX_PYPY_C = 'pypy-c'
+EX_PYPY_C_JIT = 'pypy-c-jit'
+
+
+class WrongBenchmark(Exception):
+    pass
+
+
+def guess_executeable(pypy_c_path, postfix, args, changed):
+
+    if ',' in args:
+        args_baseline, args_changed = args.split(',')
+        args = args_changed if changed else args_baseline
 
     if "psyco.sh" in pypy_c_path:
-        executable = "cpython psyco-profile"
-        revision = 100
-        project = 'cpython'
+        executable_prefix = EX_CPY_PSYCO
+    elif '--jit' in args:
+        executable_prefix = EX_PYPY_C
+    else:
+        executable_prefix = EX_PYPY_C_JIT
 
-    host = force_host if force_host else socket.gethostname()
-    print save(project, revision, res, options, executable, host,
-               changed=changed, branch=branch)
+    return executable_prefix + postfix
 
 
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
                   options='', branch='default', args='', upload=False,
-                  force_host=None, fast=False, baseline=sys.executable,
-                  full_store=False, postfix=''):
+                  fast=False, baseline=sys.executable, full_store=False):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
-    opts = ['-b', ','.join(benchmark_set), '--inherit_env=PATH',
+    opts = ['-b', ','.join(benchmark_set),
+            '--inherit_env=PATH',
             '--no_charts']
     if fast:
         opts += ['--fast']
     if args:
         opts += ['--args', args]
     if full_store:
-        opts.append('--no_statistics')
+        opts += ['--no_statistics']
     opts += [baseline, pypy_c_path]
     results = perf.main(opts, funcs)
     f = open(str(result_filename), "w")
-    res = [(name, result.__class__.__name__, result.__dict__)
+    results = [(name, result.__class__.__name__, result.__dict__)
            for name, result in results]
     f.write(json.dumps({
         'revision': revision,
-        'results': res,
+        'results': results,
         'options': options,
         'branch': branch,
         }))
     f.close()
-
-    if upload:
-        if ',' in args:
-            argsbase, argschanged = args.split(',')
-        else:
-            argsbase, argschanged = args, args
-        if 'pypy' in baseline:
-            perform_upload(pypy_c_path, argsbase, force_host, options, res,
-                           revision, changed=False, postfix=postfix,
-                           branch=branch)
-        perform_upload(pypy_c_path, argschanged, force_host, options, res,
-                       revision, changed=True, postfix=postfix, branch=branch)
-
-
-BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
-                 'rietveld', 'html5lib', 'ai']
-BENCHMARK_SET += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
-
-
-class WrongBenchmark(Exception):
-    pass
+    return results
 
 
 def main(argv):
@@ -110,8 +100,17 @@ def main(argv):
                             " python, and the arguments after are passed to"
                             " the changed python. If there's no comma, the"
                             " same options are passed to both."))
-    parser.add_option("--upload", default=False, action="store_true",
-                      help="Upload results to speed.pypy.org")
+    parser.add_option("--upload", default=None, action="store_true",
+                      help=("Upload results to speed.pypy.org (unless "
+                            "--upload-url is given)."))
+    parser.add_option("--upload-urls", default="http://speed.pypy.org/",
+                      help=("Comma seperated urls of the codespeed instance to"
+                            " upload to (default: http://speed.pypy.org/)."))
+    parser.add_option("--upload-project", default="PyPy",
+                      help="The project name in codespeed (default: PyPy).")
+    parser.add_option("--upload-executable", default=None,
+                      help=("The executable name in codespeed "
+                            "(guessed if possible and not given)."))
     parser.add_option("--force-host", default=None, action="store",
                       help="Force the hostname")
     parser.add_option("--fast", default=False, action="store_true",
@@ -130,11 +129,42 @@ def main(argv):
     for benchmark in benchmarks:
         if benchmark not in BENCHMARK_SET:
             raise WrongBenchmark(benchmark)
-    run_and_store(benchmarks, options.output_filename, options.pypy_c,
-                  options.revision, args=options.args, upload=options.upload,
-                  force_host=options.force_host, fast=options.fast,
-                  baseline=options.baseline, full_store=options.full_store,
-                  postfix=options.postfix, branch=options.branch)
+
+    pypy_c_path = options.pypy_c
+    baseline = options.baseline
+    fast = options.fast
+    args = options.args
+    full_store = options.full_store
+    output_filename = options.output_filename
+
+    project = options.upload_project
+    executable = options.upload_executable
+    postfix = options.postfix
+    branch = options.branch
+    revision = options.revision
+
+    force_host = options.force_host
+
+    results = run_and_store(benchmarks, output_filename, pypy_c_path, revision,
+                            args=args, fast=fast, baseline=baseline,
+                            full_store=full_store, branch=branch)
+
+    if options.upload:
+        changed = 'pypy' not in baseline
+        if executable is None:
+            executable = guess_executeable(pypy_c_path, postfix, args, changed)
+
+        if executable == EX_CPY_PSYCO:
+            revision = 100
+            project = 'cpython'
+
+        changed = False
+
+        host = force_host if force_host else socket.gethostname()
+        for url in options.upload_urls.split(','):
+            print save(project, revision, results, executable, host, url,
+                       changed=changed, branch=branch)
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])

@@ -22,7 +22,8 @@ class TestSaveresults(object):
     
     def test_good_input(self):
         '''Given correct result data, check that every result being saved has the right parameters'''
-        for resultparams in saveresults.save("PyPy", 71212, self.fixture, "", "pypy-c-jit", 'host', True):
+        for resultparams in saveresults.save("PyPy", 71212, self.fixture, "pypy-c-jit", 'host', 'url',
+                                             testing=True):
             assert resultparams['project'] == "PyPy"
             assert resultparams['commitid'] == 71212
             assert resultparams['executable'] == "pypy-c-jit"

@@ -29,10 +29,7 @@ import urllib
 import urllib2
 
 
-SPEEDURL = "http://speed.pypy.org/"
-
-
-def save(project, revision, results, options, executeable, host, testing=False,
+def save(project, revision, results, executeable, host, url, testing=False,
          changed=True, branch='default'):
     testparams = []
     #Parse data
@@ -85,7 +82,7 @@ def save(project, revision, results, options, executeable, host, testing=False,
         if testing:
             testparams.append(data)
         else:
-            error |= send(data)
+            error |= send(data, url)
 
     if error:
         raise IOError("Saving failed.  See messages above.")
@@ -95,7 +92,7 @@ def save(project, revision, results, options, executeable, host, testing=False,
         return 0
 
 
-def send(data):
+def send(data, url):
     #save results
     params = urllib.urlencode(data)
     f = None
@@ -108,7 +105,7 @@ def send(data):
         retries = [1, 2, 3, 6]
         while True:
             try:
-                f = urllib2.urlopen(SPEEDURL + 'result/add/', params)
+                f = urllib2.urlopen(url + 'result/add/', params)
                 response = f.read()
                 f.close()
                 break
@@ -128,7 +125,7 @@ def send(data):
         print response
         with open('error.html', 'w') as error_file:
             error_file.write(response)
-        print("Server (%s) response written to error.html" % (SPEEDURL,))
+        print("Server (%s) response written to error.html" % (url,))
         print('  Error code: %s\n' % (e,))
         return 1
     print "saved correctly!\n"
@@ -141,24 +138,35 @@ def main(jsonfile, options):
         data = simplejson.load(f)
     results = data['results']
     print 'uploading results...',
-    save('PyPy', options.revision, results, '', options.name, options.host,
-         changed=options.changed)
+    save(options.project, options.revision, results, options.executable,
+                options.host, options.url, changed=options.changed)
     print 'done'
 
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(usage="%prog result.json [options]")
     parser.add_option('-r', '--revision', dest='revision',
-                      default=None, type=str)
-    parser.add_option('-n', '--name', dest='name', default=None, type=str)
+                      default=None, type=str, help='VCS revision (required)')
+    parser.add_option('-n', '--name', dest='executable',
+                      default=None, type=str,
+                      help=('Name of the executable for codespeed.'
+                            'Deprecated. Use --e/--executable instead'))
+    parser.add_option('-e', '--executable', dest='executable',
+                      default=None, type=str,
+                      help='Name of the Executable for codespeed (required).')
     parser.add_option('-H', '--host', dest='host', default=None, type=str)
     parser.add_option('-b', '--baseline', dest='changed', default=True,
                       action='store_false',
                       help='upload the results as baseline instead of changed')
+    parser.add_option('-P', '--project', dest='project', default='PyPy')
+    parser.add_option('-u', '--url', dest='url',
+                      default="http://speed.pypy.org/",
+                      help=('Url of the codespeed instance '
+                            '(default: http://speed.pypy.org)'))
     parser.format_description = lambda fmt: __doc__
     parser.description = __doc__
     options, args = parser.parse_args()
-    if (options.revision is None or options.name is None or
+    if (options.revision is None or options.executable is None or
         options.host is None or len(args) != 1):
         parser.print_help()
         sys.exit(2)
