@@ -3,30 +3,31 @@
 """
 
 import json
-import sys
-from unladen_swallow import perf
-import benchmarks
 import socket
+import sys
+
+import benchmarks
+from saveresults import save
+from unladen_swallow import perf
 
 
 def perform_upload(pypy_c_path, args, force_host, options, res, revision,
-                   changed=True, postfix='', branch='default'):
-    from saveresults import save
-    project = 'PyPy'
-    if "--jit" in args:
-        name = "pypy-c" + postfix
-    else:
-        name = "pypy-c-jit" + postfix
+                   changed=True, postfix='', branch='default', project='PyPy',
+                   executable=None):
+    if executable is None:
+        if "--jit" in args:
+            executable = "pypy-c" + postfix
+        else:
+            executable = "pypy-c-jit" + postfix
+
     if "psyco.sh" in pypy_c_path:
-        name = "cpython psyco-profile"
+        executable = "cpython psyco-profile"
         revision = 100
         project = 'cpython'
-    if force_host is not None:
-        host = force_host
-    else:
-        host = socket.gethostname()
-    print save(project, revision, res, options, name, host, changed=changed,
-               branch=branch)
+
+    host = force_host if force_host else socket.gethostname()
+    print save(project, revision, res, options, executable, host,
+               changed=changed, branch=branch)
 
 
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
@@ -55,6 +56,7 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
         'branch': branch,
         }))
     f.close()
+
     if upload:
         if ',' in args:
             argsbase, argschanged = args.split(',')

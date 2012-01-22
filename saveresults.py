@@ -32,7 +32,7 @@ import urllib2
 SPEEDURL = "http://speed.pypy.org/"
 
 
-def save(project, revision, results, options, interpreter, host, testing=False,
+def save(project, revision, results, options, executeable, host, testing=False,
          changed=True, branch='default'):
     testparams = []
     #Parse data
@@ -68,7 +68,7 @@ def save(project, revision, results, options, interpreter, host, testing=False,
         data = {
             'commitid': revision,
             'project': project,
-            'executable': interpreter,
+            'executable': executeable,
             'benchmark': bench_name,
             'environment': host,
             'result_value': value,
