@@ -52,6 +52,11 @@ for name in ['expand', 'integrate', 'sum', 'str']:
                      extra_args=['--benchmark=' + name],
                      iteration_scaling=0.1)
 
+for name in ['xml', 'text']:
+    _register_new_bm('bm_genshi', 'genshi_' + name,
+                     globals(), bm_env={'PYTHONPATH': relative('lib/genshi')},
+                     extra_args=['--benchmark=' + name])
+
 for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco', 'go', 'pyflate-fast',
              'raytrace-simple', 'crypto_pyaes', 'bm_mako', 'bm_chameleon',
