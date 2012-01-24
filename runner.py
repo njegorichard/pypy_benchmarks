@@ -187,8 +187,7 @@ def main(argv):
                       help="Run shorter benchmark runs")
     parser.add_option("--full-store", default=False, action="store_true",
                       help="")
-    parser.add_option('--postfix', default='', action='store',
-                      help='Append a postfix to uploaded executable')
+
     options, args = parser.parse_args(argv)
 
     upload_options = get_upload_options(options)
