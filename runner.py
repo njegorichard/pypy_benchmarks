@@ -14,30 +14,12 @@ BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
                  'rietveld', 'html5lib', 'ai']
 BENCHMARK_SET += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
 
-# executeablenames
-EX_CPY_PSYCO = "cpython psyco-profile"
-EX_PYPY_C = 'pypy-c'
-EX_PYPY_C_JIT = 'pypy-c-jit'
+CHANGED = 'changed'
+BASELINE = 'baseline'
 
 
 class WrongBenchmark(Exception):
     pass
-
-
-def guess_executeable(pypy_c_path, postfix, args, changed):
-
-    if ',' in args:
-        args_baseline, args_changed = args.split(',')
-        args = args_changed if changed else args_baseline
-
-    if "psyco.sh" in pypy_c_path:
-        executable_prefix = EX_CPY_PSYCO
-    elif '--jit' in args:
-        executable_prefix = EX_PYPY_C
-    else:
-        executable_prefix = EX_PYPY_C_JIT
-
-    return executable_prefix + postfix
 
 
 def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
@@ -69,6 +51,66 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
     return results
 
 
+def get_upload_options(options):
+    '''
+    returns a dict with 2 keys: CHANGED, BASELINE. The values are
+    dicts with the keys
+    * 'upload' (boolean)
+    * 'project' (string)
+    * 'executable' (string)
+    * 'urls (list of strings).
+    * 'branch' (string)
+    * 'revision' (string)
+    
+    This correspondents to the the --upload* and --upload-baseline*
+    options.
+
+    raises: AssertionError if upload is specified, but not the
+    corresponding executable or revision.
+    '''
+
+    if options.upload_baseline_revision is None:
+        options.upload_baseline_revision = options.upload_revision
+
+    upload_options = {}
+
+    for run in [CHANGED, BASELINE]:
+
+        def get_upload_option(name):
+            attr_name = 'upload'
+            if run == BASELINE:
+                attr_name = '%s_baseline' % attr_name
+            if name:
+                attr_name = '%s_%s' % (attr_name, name)
+            return getattr(options, attr_name)
+
+        urls = get_upload_option('urls')
+        urls = [url.strip() for url in urls.split(',') if url.strip()]
+        upload = get_upload_option(None)
+        project = get_upload_option('project')
+        executable = get_upload_option('executable')
+        branch = get_upload_option('branch')
+        revision = get_upload_option('revision')
+        if upload:
+            if executable is None:
+                raise AssertionError('If you want to --upload[-baseline] you '
+                                     'have to specify the corresponding '
+                                     '--upload[-baseline]-executable')
+            if revision is None:
+                raise AssertionError('If you want to upload the result you '
+                                     'have to specify a --revision (or '
+                                     '--upload-baseline-revision if you '
+                                     'want to upload the baseline result')
+        upload_options[run] = {
+            'upload': upload,
+            'project': project,
+            'executable': executable,
+            'urls': urls,
+            'branch': branch,
+            'revision': revision}
+    return upload_options
+
+
 def main(argv):
     import optparse
     parser = optparse.OptionParser(
@@ -81,7 +123,8 @@ def main(argv):
                             ", ".join(sorted(BENCHMARK_SET))))
     parser.add_option('-p', '--pypy-c', default=sys.executable,
                       help='pypy-c or other modified python to run against')
-    parser.add_option('-r', '--revision', default=0, action="store",
+    parser.add_option('-r', '--revision', action="store",
+                      dest='upload_revision',
                       help='specify revision of pypy-c')
     parser.add_option('-o', '--output-filename', default="result.json",
                       action="store",
@@ -89,7 +132,8 @@ def main(argv):
     parser.add_option('--options', default='', action='store',
                       help='a string describing picked options, no spaces')
     parser.add_option('--branch', default='default', action='store',
-                      help="pypy's branch")
+                      dest='upload_branch',
+                      help="pypy's branch (default: 'default'")
     parser.add_option('--baseline', default=sys.executable, action='store',
                       help='baseline interpreter, defaults to host one')
     parser.add_option("-a", "--args", default="",
@@ -104,13 +148,33 @@ def main(argv):
                       help=("Upload results to speed.pypy.org (unless "
                             "--upload-url is given)."))
     parser.add_option("--upload-urls", default="http://speed.pypy.org/",
-                      help=("Comma seperated urls of the codespeed instance to"
-                            " upload to (default: http://speed.pypy.org/)."))
+                      help=("Comma seperated urls of the codespeed instances "
+                            "to upload to (default: http://speed.pypy.org/)."))
     parser.add_option("--upload-project", default="PyPy",
                       help="The project name in codespeed (default: PyPy).")
     parser.add_option("--upload-executable", default=None,
-                      help=("The executable name in codespeed "
-                            "(guessed if possible and not given)."))
+                      help="The executable name in codespeed.")
+    parser.add_option("--upload-baseline", default=None, action="store_true",
+                      help=("Also upload results or the baseline benchmark "
+                            "to speed.pypy.org (unless "
+                            "--upload-baseline-url is given)."))
+    parser.add_option("--upload-baseline-urls",
+                      default="http://speed.pypy.org/",
+                      help=("Comma seperated urls of the codespeed instances "
+                            "to upload to (default: http://speed.pypy.org/)."))
+    parser.add_option("--upload-baseline-project", default="PyPy",
+                      help="The project name in codespeed (default: PyPy).")
+    parser.add_option("--upload-baseline-executable", default=None,
+                      help="The executable name in codespeed.")
+    parser.add_option('--upload-baseline-branch', default='default',
+                      action='store',
+                      help=("The name of the branch used for the baseline "
+                            "run. (default: 'default'"))
+    parser.add_option('--upload-baseline-revision', action='store',
+                      default=None,
+                      help=("The revision of the baseline "
+                            "run. (default: the revision given with -r"))
+
     parser.add_option("--force-host", default=None, action="store",
                       help="Force the hostname")
     parser.add_option("--fast", default=False, action="store_true",
@@ -120,11 +184,8 @@ def main(argv):
     parser.add_option('--postfix', default='', action='store',
                       help='Append a postfix to uploaded executable')
     options, args = parser.parse_args(argv)
-    #
-    # use 'default' if the branch is empty
-    if not options.branch:
-        options.branch = 'default'
 
+    upload_options = get_upload_options(options)
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:
         if benchmark not in BENCHMARK_SET:
@@ -137,33 +198,27 @@ def main(argv):
     full_store = options.full_store
     output_filename = options.output_filename
 
-    project = options.upload_project
-    executable = options.upload_executable
-    postfix = options.postfix
-    branch = options.branch
-    revision = options.revision
-
+    branch = options.upload_branch
+    revision = options.upload_revision
     force_host = options.force_host
 
     results = run_and_store(benchmarks, output_filename, pypy_c_path, revision,
                             args=args, fast=fast, baseline=baseline,
                             full_store=full_store, branch=branch)
 
-    if options.upload:
-        changed = 'pypy' not in baseline
-        if executable is None:
-            executable = guess_executeable(pypy_c_path, postfix, args, changed)
+    for run in [CHANGED, BASELINE]:
+        upload = upload_options[run]['upload']
+        urls = upload_options[run]['urls']
+        project = upload_options[run]['project']
+        executable = upload_options[run]['executable']
+        branch = upload_options[run]['branch']
+        revision = upload_options[run]['revision']
 
-        if executable == EX_CPY_PSYCO:
-            revision = 100
-            project = 'cpython'
-
-        changed = False
-
-        host = force_host if force_host else socket.gethostname()
-        for url in options.upload_urls.split(','):
-            print save(project, revision, results, executable, host, url,
-                       changed=changed, branch=branch)
+        if upload:
+            host = force_host if force_host else socket.gethostname()
+            for url in urls:
+                print save(project, revision, results, executable, host, url,
+                           changed=(run == CHANGED), branch=branch)
 
 
 if __name__ == '__main__':
