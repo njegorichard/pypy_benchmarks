@@ -61,7 +61,7 @@ def get_upload_options(options):
     * 'urls (list of strings).
     * 'branch' (string)
     * 'revision' (string)
-    
+
     This correspondents to the the --upload* and --upload-baseline*
     options.
 
@@ -101,6 +101,12 @@ def get_upload_options(options):
                                      'have to specify a --revision (or '
                                      '--upload-baseline-revision if you '
                                      'want to upload the baseline result')
+            if ((run == BASELINE and 'nullpython.py' in options.baseline) or
+                (run == CHANGED and 'nullpython.py' in options.pypy_c)):
+                raise AssertionError("Don't upload data from the nullpython "
+                                     "dummy interpreter. It won't run any "
+                                     "real benchmarks.")
+
         upload_options[run] = {
             'upload': upload,
             'project': project,
@@ -215,6 +221,7 @@ def main(argv):
         revision = upload_options[run]['revision']
 
         if upload:
+            # prevent to upload results from the nullpython dummy
             host = force_host if force_host else socket.gethostname()
             for url in urls:
                 print save(project, revision, results, executable, host, url,
