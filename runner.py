@@ -122,71 +122,125 @@ def main(argv):
     parser = optparse.OptionParser(
         usage="%prog [options]",
         description="Run benchmarks and dump json")
-    parser.add_option("-b", "--benchmarks", metavar="BM_LIST",
-                      default=','.join(BENCHMARK_SET),
-                      help=("Comma-separated list of benchmarks to run"
-                            " Valid benchmarks are: " +
-                            ", ".join(sorted(BENCHMARK_SET))))
-    parser.add_option('-p', '--pypy-c', default=sys.executable,
-                      help='pypy-c or other modified python to run against')
-    parser.add_option('-r', '--revision', action="store",
-                      dest='upload_revision',
-                      help='specify revision of pypy-c')
-    parser.add_option('-o', '--output-filename', default="result.json",
-                      action="store",
-                      help='specify output filename to store resulting json')
-    parser.add_option('--options', default='', action='store',
-                      help='a string describing picked options, no spaces')
-    parser.add_option('--branch', default='default', action='store',
-                      dest='upload_branch',
-                      help="pypy's branch (default: 'default'")
-    parser.add_option('--baseline', default=sys.executable, action='store',
-                      help='baseline interpreter, defaults to host one')
-    parser.add_option("-a", "--args", default="",
-                      help=("Pass extra arguments to the python binaries."
-                            " If there is a comma in this option's value, the"
-                            " arguments before the comma (interpreted as a"
-                            " space-separated list) are passed to the baseline"
-                            " python, and the arguments after are passed to"
-                            " the changed python. If there's no comma, the"
-                            " same options are passed to both."))
-    parser.add_option("--upload", default=None, action="store_true",
-                      help=("Upload results to speed.pypy.org (unless "
-                            "--upload-url is given)."))
-    parser.add_option("--upload-urls", default="http://speed.pypy.org/",
-                      help=("Comma seperated urls of the codespeed instances "
-                            "to upload to (default: http://speed.pypy.org/)."))
-    parser.add_option("--upload-project", default="PyPy",
-                      help="The project name in codespeed (default: PyPy).")
-    parser.add_option("--upload-executable", default=None,
-                      help="The executable name in codespeed.")
-    parser.add_option("--upload-baseline", default=None, action="store_true",
-                      help=("Also upload results or the baseline benchmark "
-                            "to speed.pypy.org (unless "
-                            "--upload-baseline-url is given)."))
-    parser.add_option("--upload-baseline-urls",
-                      default="http://speed.pypy.org/",
-                      help=("Comma seperated urls of the codespeed instances "
-                            "to upload to (default: http://speed.pypy.org/)."))
-    parser.add_option("--upload-baseline-project", default="PyPy",
-                      help="The project name in codespeed (default: PyPy).")
-    parser.add_option("--upload-baseline-executable", default=None,
-                      help="The executable name in codespeed.")
-    parser.add_option('--upload-baseline-branch', default='default',
-                      action='store',
-                      help=("The name of the branch used for the baseline "
-                            "run. (default: 'default'"))
-    parser.add_option('--upload-baseline-revision', action='store',
-                      default=None,
-                      help=("The revision of the baseline "
-                            "run. (default: the revision given with -r"))
 
-    parser.add_option("--force-host", default=None, action="store",
-                      help="Force the hostname")
-    parser.add_option("--fast", default=False, action="store_true",
-                      help="Run shorter benchmark runs")
-    parser.add_option("--full-store", default=False, action="store_true",
-                      help="")
+    # benchmark options
+    benchmark_group = optparse.OptionGroup(
+        parser, 'Benchmark options',
+        ('Options affecting the benchmark runs and the resulting output '
+         'json file.'))
+    benchmark_group.add_option(
+        "-b", "--benchmarks", metavar="BM_LIST",
+        default=','.join(BENCHMARK_SET),
+        help=("Comma-separated list of benchmarks to run"
+              " Valid benchmarks are: %s"
+              ". (default: Run all listed benchmarks)"
+              ) % ", ".join(sorted(BENCHMARK_SET)))
+    benchmark_group.add_option(
+        '-p', '--pypy-c', default=sys.executable,
+        help=('pypy-c or another modified python interpreter to run against. '
+              'Also named "changed" python. (default: the python used to '
+              'run this script)'))
+    benchmark_group.add_option(
+        '--baseline', default=sys.executable, action='store',
+        help=('Baseline interpreter. (default: the python used to '
+              'run this script)'))
+    benchmark_group.add_option(
+        '-o', '--output-filename', default="result.json",
+        action="store",
+        help=('Specify the output filename to store resulting json. '
+              '(default: result.json)'))
+    benchmark_group.add_option(
+        '--options', default='', action='store',
+        help='A string describing picked options, no spaces.')
+    benchmark_group.add_option(
+        '--branch', default='default', action='store',
+        dest='upload_branch',
+        help=("The branch the 'pypy-c' interpreter was compiled from. This "
+              'will be store in the result json and used for the upload. '
+              "(default: 'default')"))
+    benchmark_group.add_option(
+        '-r', '--revision', action="store",
+        dest='upload_revision',
+        help=('Specify the revision of pypy-c. This will be store in the '
+              'result json and used for the upload. (default: None)'))
+    benchmark_group.add_option(
+        "-a", "--args", default="",
+        help=("Pass extra arguments to the python binaries."
+              " If there is a comma in this option's value, the"
+              " arguments before the comma (interpreted as a"
+              " space-separated list) are passed to the baseline"
+              " python, and the arguments after are passed to"
+              " the changed python. If there's no comma, the"
+              " same options are passed to both."))
+    benchmark_group.add_option(
+        "--fast", default=False, action="store_true",
+        help="Run shorter benchmark runs.")
+    benchmark_group.add_option(
+        "--full-store", default=False, action="store_true",
+        help="Run the benchmarks with the --no-statistics flag.")
+    parser.add_option_group(benchmark_group)
+
+    # upload changed options
+    upload_group = optparse.OptionGroup(
+        parser, 'Upload Options',
+        ('Options for uploading the result of the "changed" python to '
+         'codespeed. The information about revision and branch will '
+         'be taken from the options --revision and --branch.'))
+    upload_group.add_option(
+        "--upload", default=None, action="store_true",
+        help=("Upload results to speed.pypy.org (unless "
+              "--upload-url is given)."))
+    upload_group.add_option(
+        "--upload-urls", default="http://speed.pypy.org/",
+        help=("Comma seperated urls of the codespeed instances "
+              "to upload to. (default: http://speed.pypy.org/)"))
+    upload_group.add_option(
+        "--upload-project", default="PyPy",
+        help="The project name in codespeed. (default: PyPy)")
+    upload_group.add_option(
+        "--upload-executable", default=None,
+        help=("The executable name in codespeed. (required if --upload "
+              "is given)"))
+    parser.add_option_group(upload_group)
+    parser.add_option(
+        "--force-host", default=None, action="store",
+        help=("Force the hostname. This option will also be used when "
+              "uploading the baseline result."))
+
+    # upload baseline group
+    upload_baseline_group = optparse.OptionGroup(
+        parser, 'Upload Baseline Options',
+        ('Options for uploading the result of the "baseline" python to '
+         'codespeed. The hostname of the --force-host option will be used '
+         'in the baseline upload too.'))
+    upload_baseline_group.add_option(
+        "--upload-baseline", default=None, action="store_true",
+        help=("Also upload results or the baseline benchmark "
+              "to speed.pypy.org (unless "
+              "--upload-baseline-url is given)."))
+    upload_baseline_group.add_option(
+        "--upload-baseline-urls",
+        default="http://speed.pypy.org/",
+        help=("Comma seperated urls of the codespeed instances "
+              "to upload to. (default: http://speed.pypy.org/)"))
+    upload_baseline_group.add_option(
+        "--upload-baseline-project", default="PyPy",
+        help="The project name in codespeed (default: PyPy).")
+    upload_baseline_group.add_option(
+        "--upload-baseline-executable", default=None,
+        help=("The executable name in codespeed. (required if "
+              "--upload-baseline is given)"))
+    upload_baseline_group.add_option(
+        '--upload-baseline-branch', default='default',
+        action='store',
+        help=("The name of the branch used for the baseline "
+              "run. (default: 'default'"))
+    upload_baseline_group.add_option(
+        '--upload-baseline-revision', action='store',
+        default=None,
+        help=("The revision of the baseline. (required if --upload-baseline "
+              "is given)"))
+    parser.add_option_group(upload_baseline_group)
 
     options, args = parser.parse_args(argv)
 
