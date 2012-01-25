@@ -22,9 +22,9 @@ class WrongBenchmark(Exception):
     pass
 
 
-def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
+def run_and_store(benchmark_set, result_filename, changed_path, revision=0,
                   options='', branch='default', args='', upload=False,
-                  fast=False, baseline=sys.executable, full_store=False):
+                  fast=False, baseline_path=sys.executable, full_store=False):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
     opts = ['-b', ','.join(benchmark_set),
@@ -36,7 +36,7 @@ def run_and_store(benchmark_set, result_filename, pypy_c_path, revision=0,
         opts += ['--args', args]
     if full_store:
         opts += ['--no_statistics']
-    opts += [baseline, pypy_c_path]
+    opts += [baseline_path, changed_path]
     results = perf.main(opts, funcs)
     f = open(str(result_filename), "w")
     results = [(name, result.__class__.__name__, result.__dict__)
@@ -102,7 +102,7 @@ def get_upload_options(options):
                                      '--upload-baseline-revision if you '
                                      'want to upload the baseline result')
             if ((run == BASELINE and 'nullpython.py' in options.baseline) or
-                (run == CHANGED and 'nullpython.py' in options.pypy_c)):
+                (run == CHANGED and 'nullpython.py' in options.changed)):
                 raise AssertionError("Don't upload data from the nullpython "
                                      "dummy interpreter. It won't run any "
                                      "real benchmarks.")
@@ -136,10 +136,10 @@ def main(argv):
               ". (default: Run all listed benchmarks)"
               ) % ", ".join(sorted(BENCHMARK_SET)))
     benchmark_group.add_option(
-        '-p', '--pypy-c', default=sys.executable,
+        '-c', '--changed', default=sys.executable,
         help=('pypy-c or another modified python interpreter to run against. '
-              'Also named "changed" python. (default: the python used to '
-              'run this script)'))
+              'Also named the "changed" interpreter. (default: the python '
+              'used to run this script)'))
     benchmark_group.add_option(
         '--baseline', default=sys.executable, action='store',
         help=('Baseline interpreter. (default: the python used to '
@@ -155,13 +155,14 @@ def main(argv):
     benchmark_group.add_option(
         '--branch', default='default', action='store',
         dest='upload_branch',
-        help=("The branch the 'pypy-c' interpreter was compiled from. This "
+        help=("The branch the 'changed' interpreter was compiled from. This "
               'will be store in the result json and used for the upload. '
               "(default: 'default')"))
     benchmark_group.add_option(
         '-r', '--revision', action="store",
         dest='upload_revision',
-        help=('Specify the revision of pypy-c. This will be store in the '
+        help=("Specify the revision of the 'changed' interpreter. "
+              'This will be store in the '
               'result json and used for the upload. (default: None)'))
     benchmark_group.add_option(
         "-a", "--args", default="",
@@ -242,6 +243,15 @@ def main(argv):
               "is given)"))
     parser.add_option_group(upload_baseline_group)
 
+    # Backward compoatibility options
+    deprecated_group = optparse.OptionGroup(
+        parser, 'Deprecated Options',
+        'Still here for backward compatibility.')
+    deprecated_group.add_option(
+        '-p', '--pypy-c', default=sys.executable,
+        dest='changed', help='Deprecated alias for -c/--changed')
+    parser.add_option_group(deprecated_group)
+
     options, args = parser.parse_args(argv)
 
     upload_options = get_upload_options(options)
@@ -250,8 +260,8 @@ def main(argv):
         if benchmark not in BENCHMARK_SET:
             raise WrongBenchmark(benchmark)
 
-    pypy_c_path = options.pypy_c
-    baseline = options.baseline
+    changed_path = options.changed
+    baseline_path = options.baseline
     fast = options.fast
     args = options.args
     full_store = options.full_store
@@ -261,8 +271,9 @@ def main(argv):
     revision = options.upload_revision
     force_host = options.force_host
 
-    results = run_and_store(benchmarks, output_filename, pypy_c_path, revision,
-                            args=args, fast=fast, baseline=baseline,
+    results = run_and_store(benchmarks, output_filename, changed_path,
+                            revision, args=args, fast=fast,
+                            baseline_path=baseline_path,
                             full_store=full_store, branch=branch)
 
     for run in [CHANGED, BASELINE]:
