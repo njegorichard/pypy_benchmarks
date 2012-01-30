@@ -12,28 +12,30 @@ Revision, name and host are required.
 
 Example usage:
 
-  $ ./saveresults.py result.json -r '45757:fabe4fc0dc08' -n pypy-c-jit -H tannit
-  
-  OR
-  
-  $ ./saveresults.py result.json -r '45757:fabe4fc0dc08' -n pypy-c-jit-64 -H tannit
+  $ ./saveresults.py result.json -r '45757:fabe4fc0dc08' -n pypy-c-jit \
+    -H tannit
 
+  OR
+
+  $ ./saveresults.py result.json -r '45757:fabe4fc0dc08' -n pypy-c-jit-64 \
+    -H tannit
 """
 
-import sys
-import urllib, urllib2, time
 from datetime import datetime
 import optparse
+import sys
+import time
+import urllib
+import urllib2
 
-SPEEDURL = "http://speed.pypy.org/"
 
-def save(project, revision, results, options, interpreter, host, testing=False,
+def save(project, revision, results, executeable, host, url, testing=False,
          changed=True, branch='default'):
     testparams = []
     #Parse data
     data = {}
     error = 0
-        
+
     for b in results:
         bench_name = b[0]
         res_type = b[1]
@@ -63,7 +65,7 @@ def save(project, revision, results, options, interpreter, host, testing=False,
         data = {
             'commitid': revision,
             'project': project,
-            'executable': interpreter,
+            'executable': executeable,
             'benchmark': bench_name,
             'environment': host,
             'result_value': value,
@@ -77,26 +79,33 @@ def save(project, revision, results, options, interpreter, host, testing=False,
                 data['std_dev'] = results['std_changed']
             else:
                 data['std_dev'] = results['std_base']
-        if testing: testparams.append(data)
-        else: error |= send(data)
+        if testing:
+            testparams.append(data)
+        else:
+            error |= send(data, url)
+
     if error:
         raise IOError("Saving failed.  See messages above.")
-    if testing: return testparams
-    else: return 0
-    
-def send(data):
+    if testing:
+        return testparams
+    else:
+        return 0
+
+
+def send(data, url):
     #save results
     params = urllib.urlencode(data)
     f = None
     response = "None"
-    info = str(datetime.today()) + ": Saving result for " + data['executable'] + " revision "
-    info += str(data['commitid']) + ", benchmark " + data['benchmark']
+    info = ("%s: Saving result for %s revision %s, benchmark %s" %
+            (str(datetime.today()), data['executable'],
+             str(data['commitid']), data['benchmark']))
     print(info)
     try:
         retries = [1, 2, 3, 6]
         while True:
             try:
-                f = urllib2.urlopen(SPEEDURL + 'result/add/', params)
+                f = urllib2.urlopen(url + 'result/add/', params)
                 response = f.read()
                 f.close()
                 break
@@ -116,7 +125,7 @@ def send(data):
         print response
         with open('error.html', 'w') as error_file:
             error_file.write(response)
-        print("Server (%s) response written to error.html" % (SPEEDURL,))
+        print("Server (%s) response written to error.html" % (url,))
         print('  Error code: %s\n' % (e,))
         return 1
     print "saved correctly!\n"
@@ -129,24 +138,36 @@ def main(jsonfile, options):
         data = simplejson.load(f)
     results = data['results']
     print 'uploading results...',
-    save('PyPy', options.revision, results, '', options.name, options.host,
-         changed=options.changed)
+    save(options.project, options.revision, results, options.executable,
+                options.host, options.url, changed=options.changed)
     print 'done'
 
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(usage="%prog result.json [options]")
-    parser.add_option('-r', '--revision', dest='revision', default=None, type=str)
-    parser.add_option('-n', '--name', dest='name', default=None, type=str)
+    parser.add_option('-r', '--revision', dest='revision',
+                      default=None, type=str, help='VCS revision (required)')
+    parser.add_option('-n', '--name', dest='executable',
+                      default=None, type=str,
+                      help=('Name of the executable for codespeed.'
+                            'Deprecated. Use --e/--executable instead'))
+    parser.add_option('-e', '--executable', dest='executable',
+                      default=None, type=str,
+                      help='Name of the Executable for codespeed (required).')
     parser.add_option('-H', '--host', dest='host', default=None, type=str)
     parser.add_option('-b', '--baseline', dest='changed', default=True,
                       action='store_false',
                       help='upload the results as baseline instead of changed')
+    parser.add_option('-P', '--project', dest='project', default='PyPy')
+    parser.add_option('-u', '--url', dest='url',
+                      default="http://speed.pypy.org/",
+                      help=('Url of the codespeed instance '
+                            '(default: http://speed.pypy.org)'))
     parser.format_description = lambda fmt: __doc__
     parser.description = __doc__
     options, args = parser.parse_args()
-    if options.revision is None or options.name is None or options.host is None or \
-            len(args) != 1:
+    if (options.revision is None or options.executable is None or
+        options.host is None or len(args) != 1):
         parser.print_help()
         sys.exit(2)
     main(args[0], options)
