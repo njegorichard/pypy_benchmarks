@@ -52,7 +52,7 @@ def run_and_store(benchmark_set, result_filename, changed_path, revision=0,
 
 
 def get_upload_options(options):
-    '''
+    """
     returns a dict with 2 keys: CHANGED, BASELINE. The values are
     dicts with the keys
     * 'upload' (boolean)
@@ -67,7 +67,7 @@ def get_upload_options(options):
 
     raises: AssertionError if upload is specified, but not the
     corresponding executable or revision.
-    '''
+    """
 
     if options.upload_baseline_revision is None:
         options.upload_baseline_revision = options.upload_revision
@@ -281,7 +281,7 @@ def main(argv):
         urls = upload_options[run]['urls']
         project = upload_options[run]['project']
         executable = upload_options[run]['executable']
-        branch = upload_options[run]['branch']
+        branch = upload_options[run]['branch'] or 'default'
         revision = upload_options[run]['revision']
 
         if upload:
