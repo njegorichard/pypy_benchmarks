@@ -121,7 +121,8 @@ def send(data, url):
             response += '  Reason: ' + str(e.reason)
         elif hasattr(e, 'code'):
             response = '\n  The server couldn\'t fulfill the request'
-        response = "".join([response] + e.readlines())
+        if hasattr(e, 'readlines'):
+            response = "".join([response] + e.readlines())
         print response
         with open('error.html', 'w') as error_file:
             error_file.write(response)
