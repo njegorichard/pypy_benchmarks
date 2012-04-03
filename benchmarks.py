@@ -118,7 +118,7 @@ def test_parse_timer():
         ('database', 0.4)
         ]
 
-def XBM_translate(base_python, changed_python, options):
+def BM_translate(base_python, changed_python, options):
     """
     Run translate.py and returns a benchmark result for each of the phases.
     Note that we run it only with ``base_python`` (which corresponds to
@@ -148,7 +148,7 @@ def XBM_translate(base_python, changed_python, options):
         data = RawResult([time], None)
         result.append((name, data))
     return result
-XBM_translate.benchmark_name = 'trans'
+BM_translate.benchmark_name = 'trans'
 
 def BM_cpython_doc(base_python, changed_python, options):
     from unladen_swallow.perf import RawResult
