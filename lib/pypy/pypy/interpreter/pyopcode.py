@@ -713,6 +713,17 @@ class __extend__(pyframe.PyFrame):
         w_list = self.space.newlist(items)
         self.pushvalue(w_list)
 
+    def BUILD_LIST_FROM_ARG(self, _, next_instr):
+        # this is a little dance, because list has to be before the
+        # value
+        last_val = self.popvalue()
+        try:
+            lgt = self.space.int_w(self.space.len(last_val))
+        except OperationError:
+            lgt = 0 # oh well
+        self.pushvalue(self.space.newlist([]))
+        self.pushvalue(last_val)
+
     def LOAD_ATTR(self, nameindex, next_instr):
         "obj.attributename"
         w_obj = self.popvalue()
