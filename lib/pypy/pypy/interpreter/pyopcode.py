@@ -717,10 +717,6 @@ class __extend__(pyframe.PyFrame):
         # this is a little dance, because list has to be before the
         # value
         last_val = self.popvalue()
-        try:
-            lgt = self.space.int_w(self.space.len(last_val))
-        except OperationError:
-            lgt = 0 # oh well
         self.pushvalue(self.space.newlist([]))
         self.pushvalue(last_val)
 
