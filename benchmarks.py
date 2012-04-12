@@ -49,8 +49,7 @@ opts = {
 for name in ['expand', 'integrate', 'sum', 'str']:
     _register_new_bm('bm_sympy', 'sympy_' + name,
                      globals(), bm_env={'PYTHONPATH': relative('lib/sympy')},
-                     extra_args=['--benchmark=' + name],
-                     iteration_scaling=0.1)
+                     extra_args=['--benchmark=' + name])
 
 for name in ['xml', 'text']:
     _register_new_bm('bm_genshi', 'genshi_' + name,
