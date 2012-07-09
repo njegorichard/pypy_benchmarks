@@ -281,7 +281,8 @@ def CanGetMemoryUsage():
             pass
 
     try:
-        _ReadSmapsFile(pid=1)
+        import os
+        _ReadSmapsFile(pid=os.getpid())
     except IOError:
         pass
     else:
