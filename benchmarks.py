@@ -63,7 +63,10 @@ for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'json_bench']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
 for name in ['names', 'iteration', 'tcp', 'pb', 'web']:#, 'accepts']:
-    iteration_scaling = 1.0
+    if name == 'web':
+        iteration_scaling = 0.2
+    else:
+        iteration_scaling = 1.0
     _register_new_bm_twisted(name, 'twisted_' + name,
                      globals(), bm_env={'PYTHONPATH': ':'.join(TWISTED)},
                                  iteration_scaling=iteration_scaling)
