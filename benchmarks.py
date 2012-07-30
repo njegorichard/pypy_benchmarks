@@ -60,7 +60,7 @@ for name in ['xml', 'text']:
 for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco', 'go', 'pyflate-fast',
              'raytrace-simple', 'crypto_pyaes', 'bm_mako', 'bm_chameleon',
-             'json_bench']:
+             'json_bench', 'hexiom2']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
 for name in ['names', 'iteration', 'tcp', 'pb', ]:#'web']:#, 'accepts']:
     if name == 'web':
