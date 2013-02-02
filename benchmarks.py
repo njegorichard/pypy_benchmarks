@@ -186,22 +186,22 @@ def BM_cpython_doc(base_python, changed_python, options):
     
 BM_cpython_doc.benchmark_name = 'sphinx'
 
-if 0:
+if 1:
     _register_new_bm('scimark', 'scimark_SOR', globals(), 
-                     extra_args=['--benchmark=SOR', '100', '3276', 'Array2D'])
+                     extra_args=['--benchmark=SOR', '100', '50', 'Array2D'])
     #_register_new_bm('scimark', 'scimark_SOR_large', globals(), 
     #                 extra_args=['--benchmark=SOR', '1000', '25', 'Array2D'])
     _register_new_bm('scimark', 'scimark_SparseMatMult', globals(), 
-                     extra_args=['--benchmark=SparseMatMult', '1000', '50000', '26214'])
+                     extra_args=['--benchmark=SparseMatMult', '1000', '50000', '200'])
     #_register_new_bm('scimark', 'scimark_SparseMatMult_large', globals(), 
     #                 extra_args=['--benchmark=SparseMatMult', '100000', '1000000', '102'])
     _register_new_bm('scimark', 'scimark_MonteCarlo', globals(), 
-                     extra_args=['--benchmark=MonteCarlo', '26843545'])
+                     extra_args=['--benchmark=MonteCarlo', '500000'])
     _register_new_bm('scimark', 'scimark_LU', globals(), 
-                     extra_args=['--benchmark=LU', '100', '409'])
+                     extra_args=['--benchmark=LU', '100', '5'])
     #_register_new_bm('scimark', 'scimark_LU_large', globals(), 
     #                 extra_args=['--benchmark=LU', '1000', '1'])
     _register_new_bm('scimark', 'scimark_FFT', globals(), 
-                     extra_args=['--benchmark=FFT', '1024', '3276'])
+                     extra_args=['--benchmark=FFT', '1024', '100'])
     #_register_new_bm('scimark', 'scimark_FFT_large', globals(), 
     #                 extra_args=['--benchmark=FFT', '1048576', '1'])
