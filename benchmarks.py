@@ -1,6 +1,8 @@
 import os
 import logging
 from unladen_swallow.perf import SimpleBenchmark, MeasureGeneric
+from unladen_swallow.perf import RawResult, SimpleComparisonResult, avg, ResultError
+import subprocess
 
 def relative(*args):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), *args)
@@ -33,6 +35,22 @@ def _register_new_bm_twisted(name, bm_name, d, **opts):
 
     def BM(*args, **kwds):
         return SimpleBenchmark(Measure, *args, **kwds)
+    BM.func_name = 'BM_' + bm_name
+
+    d[BM.func_name] = BM
+    
+def _register_new_bm_base_only(name, bm_name, d, **opts):
+    def benchmark_function(python, options):
+        bm_path = relative('own', name + '.py')
+        return MeasureGeneric(python, options, bm_path, **opts)
+
+    def BM(base_python, changed_python, options, *args, **kwargs):        
+        try:
+            base_data = benchmark_function(base_python, options,
+                                           *args, **kwargs)
+        except subprocess.CalledProcessError, e:
+            return ResultError(e)
+        return SimpleComparisonResult(avg(base_data[0]), -1, -1)
     BM.func_name = 'BM_' + bm_name
 
     d[BM.func_name] = BM
@@ -130,8 +148,6 @@ def BM_translate(base_python, changed_python, options):
     pypy-c-jit in the nightly benchmarks, we are not interested in
     ``changed_python`` (aka pypy-c-nojit) right now.
     """
-    from unladen_swallow.perf import RawResult
-    import subprocess
 
     translate_py = relative('lib/pypy/pypy/translator/goal/translate.py')
     #targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
@@ -187,21 +203,21 @@ def BM_cpython_doc(base_python, changed_python, options):
 BM_cpython_doc.benchmark_name = 'sphinx'
 
 if 1:
-    _register_new_bm('scimark', 'scimark_SOR', globals(), 
-                     extra_args=['--benchmark=SOR', '100', '50', 'Array2D'])
+    _register_new_bm_base_only('scimark', 'scimark_SOR', globals(), 
+                     extra_args=['--benchmark=SOR', '100', '5000', 'Array2D'])
     #_register_new_bm('scimark', 'scimark_SOR_large', globals(), 
     #                 extra_args=['--benchmark=SOR', '1000', '25', 'Array2D'])
-    _register_new_bm('scimark', 'scimark_SparseMatMult', globals(), 
-                     extra_args=['--benchmark=SparseMatMult', '1000', '50000', '200'])
+    _register_new_bm_base_only('scimark', 'scimark_SparseMatMult', globals(), 
+                     extra_args=['--benchmark=SparseMatMult', '1000', '50000', '2000'])
     #_register_new_bm('scimark', 'scimark_SparseMatMult_large', globals(), 
     #                 extra_args=['--benchmark=SparseMatMult', '100000', '1000000', '102'])
-    _register_new_bm('scimark', 'scimark_MonteCarlo', globals(), 
-                     extra_args=['--benchmark=MonteCarlo', '500000'])
-    _register_new_bm('scimark', 'scimark_LU', globals(), 
-                     extra_args=['--benchmark=LU', '100', '5'])
+    _register_new_bm_base_only('scimark', 'scimark_MonteCarlo', globals(), 
+                     extra_args=['--benchmark=MonteCarlo', '5000000'])
+    _register_new_bm_base_only('scimark', 'scimark_LU', globals(), 
+                     extra_args=['--benchmark=LU', '100', '200'])
     #_register_new_bm('scimark', 'scimark_LU_large', globals(), 
     #                 extra_args=['--benchmark=LU', '1000', '1'])
-    _register_new_bm('scimark', 'scimark_FFT', globals(), 
-                     extra_args=['--benchmark=FFT', '1024', '100'])
+    _register_new_bm_base_only('scimark', 'scimark_FFT', globals(), 
+                     extra_args=['--benchmark=FFT', '1024', '1000'])
     #_register_new_bm('scimark', 'scimark_FFT_large', globals(), 
     #                 extra_args=['--benchmark=FFT', '1048576', '1'])
