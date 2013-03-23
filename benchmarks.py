@@ -148,13 +148,14 @@ def BM_translate(base_python, changed_python, options):
     pypy-c-jit in the nightly benchmarks, we are not interested in
     ``changed_python`` (aka pypy-c-nojit) right now.
     """
-    options['bm_env']['PYTHONPATH'] = relative('lib/pypy')
     translate_py = relative('lib/pypy/rpython/bin/rpython')
     target = relative('lib/pypy/pypy/goal/targetpypystandalone.py')
     #targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
     args = base_python + [translate_py, '--source', '--dont-write-c-files', '-O2', target]
     logging.info('Running %s', ' '.join(args))
-    proc = subprocess.Popen(args, stderr=subprocess.PIPE)
+    environ = os.environ.copy()
+    environ['PYTHONPATH'] = relative('lib/pypy')
+    proc = subprocess.Popen(args, stderr=subprocess.PIPE, env=environ)
     out, err = proc.communicate()
     retcode = proc.poll()
     if retcode != 0:
