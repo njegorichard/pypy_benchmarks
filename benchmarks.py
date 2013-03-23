@@ -38,13 +38,13 @@ def _register_new_bm_twisted(name, bm_name, d, **opts):
     BM.func_name = 'BM_' + bm_name
 
     d[BM.func_name] = BM
-    
+
 def _register_new_bm_base_only(name, bm_name, d, **opts):
     def benchmark_function(python, options):
         bm_path = relative('own', name + '.py')
         return MeasureGeneric(python, options, bm_path, **opts)
 
-    def BM(base_python, changed_python, options, *args, **kwargs):        
+    def BM(base_python, changed_python, options, *args, **kwargs):
         try:
             base_data = benchmark_function(base_python, options,
                                            *args, **kwargs)
@@ -149,9 +149,10 @@ def BM_translate(base_python, changed_python, options):
     ``changed_python`` (aka pypy-c-nojit) right now.
     """
 
-    translate_py = relative('lib/pypy/pypy/translator/goal/translate.py')
+    translate_py = relative('lib/pypy/rpython/bin/rpython')
+    target = relative('lib/pypy/pypy/goal/targetpypystandalone.py')
     #targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
-    args = base_python + [translate_py, '--source', '--dont-write-c-files', '-O2']
+    args = base_python + [translate_py, '--source', '--dont-write-c-files', '-O2', target]
     logging.info('Running %s', ' '.join(args))
     proc = subprocess.Popen(args, stderr=subprocess.PIPE)
     out, err = proc.communicate()
@@ -169,7 +170,7 @@ def BM_translate(base_python, changed_python, options):
         data = RawResult([time], None)
         result.append((name, data))
     return result
-BM_translate.benchmark_name = 'trans'
+BM_translate.benchmark_name = 'trans2'
 
 def BM_cpython_doc(base_python, changed_python, options):
     from unladen_swallow.perf import RawResult
@@ -199,17 +200,17 @@ def BM_cpython_doc(base_python, changed_python, options):
             raise Exception("sphinx-build.py failed")
         t.append(float(out.splitlines()[-1]))
     return RawResult([t[0]], [t[1]])
-    
+
 BM_cpython_doc.benchmark_name = 'sphinx'
 
 # Scimark
-_register_new_bm_base_only('scimark', 'scimark_SOR', globals(), 
+_register_new_bm_base_only('scimark', 'scimark_SOR', globals(),
                  extra_args=['--benchmark=SOR', '100', '5000', 'Array2D'])
-_register_new_bm_base_only('scimark', 'scimark_SparseMatMult', globals(), 
+_register_new_bm_base_only('scimark', 'scimark_SparseMatMult', globals(),
                  extra_args=['--benchmark=SparseMatMult', '1000', '50000', '2000'])
-_register_new_bm_base_only('scimark', 'scimark_MonteCarlo', globals(), 
+_register_new_bm_base_only('scimark', 'scimark_MonteCarlo', globals(),
                  extra_args=['--benchmark=MonteCarlo', '5000000'])
-_register_new_bm_base_only('scimark', 'scimark_LU', globals(), 
+_register_new_bm_base_only('scimark', 'scimark_LU', globals(),
                  extra_args=['--benchmark=LU', '100', '200'])
-_register_new_bm_base_only('scimark', 'scimark_FFT', globals(), 
+_register_new_bm_base_only('scimark', 'scimark_FFT', globals(),
                  extra_args=['--benchmark=FFT', '1024', '1000'])
