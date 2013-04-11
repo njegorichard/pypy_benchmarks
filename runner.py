@@ -5,6 +5,7 @@
 import json
 import socket
 import sys
+import os
 
 import benchmarks
 from saveresults import save
@@ -207,6 +208,8 @@ def main(argv):
         "--force-host", default=None, action="store",
         help=("Force the hostname. This option will also be used when "
               "uploading the baseline result."))
+    parser.add_option("--niceness", default=None, type="int",
+                      help="Set absolute niceness for process")
 
     # upload baseline group
     upload_baseline_group = optparse.OptionGroup(
@@ -270,6 +273,9 @@ def main(argv):
     branch = options.upload_branch
     revision = options.upload_revision
     force_host = options.force_host
+
+    if options.niceness:
+        os.nice(options.niceness - os.nice(0))
 
     results = run_and_store(benchmarks, output_filename, changed_path,
                             revision, args=args, fast=fast,

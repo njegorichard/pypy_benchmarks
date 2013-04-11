@@ -82,6 +82,7 @@ for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'raytrace-simple', 'crypto_pyaes', 'bm_mako', 'bm_chameleon',
              'json_bench', 'pidigits', 'hexiom2', 'eparse']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
+
 for name in ['names', 'iteration', 'tcp', 'pb', ]:#'web']:#, 'accepts']:
     if name == 'web':
         iteration_scaling = 0.2
@@ -90,12 +91,11 @@ for name in ['names', 'iteration', 'tcp', 'pb', ]:#'web']:#, 'accepts']:
     _register_new_bm_twisted(name, 'twisted_' + name,
                      globals(), bm_env={'PYTHONPATH': ':'.join(TWISTED)},
                                  iteration_scaling=iteration_scaling)
+
 _register_new_bm('spitfire', 'spitfire', globals(),
     extra_args=['--benchmark=spitfire_o4'])
 _register_new_bm('spitfire', 'spitfire_cstringio', globals(),
     extra_args=['--benchmark=python_cstringio'])
-
-
 
 # =========================================================================
 # translate.py benchmark
