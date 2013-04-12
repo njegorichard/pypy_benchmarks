@@ -274,7 +274,7 @@ def main(argv):
     revision = options.upload_revision
     force_host = options.force_host
 
-    if options.niceness:
+    if options.niceness is not None:
         os.nice(options.niceness - os.nice(0))
 
     results = run_and_store(benchmarks, output_filename, changed_path,
