@@ -159,9 +159,13 @@ def BM_translate(base_python, changed_python, options):
     out, err = proc.communicate()
     retcode = proc.poll()
     if retcode != 0:
-        print out
-        print err
-        raise Exception("translate.py failed")
+        if out is not None:
+            print '---------- stdout ----------'
+            print out
+        if err is not None:
+            print '---------- stderr ----------'
+            print err
+        raise Exception("translate.py failed, retcode %r" % (retcode,))
 
     lines = err.splitlines()
     timings = parse_timer(lines)
