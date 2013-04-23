@@ -668,7 +668,12 @@ def CompareMultipleRuns(base_times, changed_times, options):
         A string summarizing the difference between the runs, suitable for
         human consumption.
     """
-    assert len(base_times) == len(changed_times)
+    if len(base_times) != len(changed_times):
+        print "Base:"
+        print base_times
+        print "Changed:"
+        print changed_times
+        raise Exception("length did not match")
     if options.no_statistics:
         return RawResult(base_times, changed_times)
     if len(base_times) == 1:
