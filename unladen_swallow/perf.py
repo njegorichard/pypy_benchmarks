@@ -448,7 +448,7 @@ def SimpleBenchmark(benchmark_function, base_python, changed_python, options,
         base_python: path to the reference Python binary.
         changed_python: path to the experimental Python binary.
         options: optparse.Values instance.
-        *args, **kwargs: will be passed through to benchmark_function. 
+        *args, **kwargs: will be passed through to benchmark_function.
 
     Returns:
         An object representing differences between the two benchmark runs.
@@ -671,7 +671,12 @@ def CompareMultipleRuns(base_times, changed_times, options):
         A string summarizing the difference between the runs, suitable for
         human consumption.
     """
-    assert len(base_times) == len(changed_times)
+    if len(base_times) != len(changed_times):
+        print "Base:"
+        print base_times
+        print "Changed:"
+        print changed_times
+        raise Exception("length did not match")
     if options.no_statistics:
         return RawResult(base_times, changed_times)
     if len(base_times) == 1:
@@ -746,7 +751,7 @@ def CallAndCaptureOutput(command, env=None, track_memory=False, inherit_env=[]):
     Returns:
         (stdout, mem_usage), where stdout is the captured stdout as a string;
         mem_usage is a list of memory usage samples in kilobytes (if
-        track_memory is False, mem_usage is None). 
+        track_memory is False, mem_usage is None).
 
     Raises:
         RuntimeError: if the command failed. The value of the exception will
@@ -761,7 +766,9 @@ def CallAndCaptureOutput(command, env=None, track_memory=False, inherit_env=[]):
         future = MemoryUsageFuture(subproc.pid)
     result, err = subproc.communicate()
     if subproc.returncode != 0:
-        raise RuntimeError("Benchmark died: " + err)
+        print result
+        raise RuntimeError("Benchmark died (returncode: %d): %s" %
+                           (subproc.returncode, err))
     if track_memory:
         mem_usage = future.GetMemoryUsage()
     return result, mem_usage
@@ -1443,7 +1450,7 @@ def _FindAllBenchmarks(namespace):
 BENCH_FUNCS = _FindAllBenchmarks(globals())
 
 # Benchmark groups. The "default" group is what's run if no -b option is
-# specified. 
+# specified.
 # If you update the default group, be sure to update the module docstring, too.
 # An "all" group which includes every benchmark perf.py knows about is generated
 # automatically.
@@ -1571,7 +1578,7 @@ def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
                             " Valid benchmarks are: " +
                             ", ".join(bench_groups.keys() + all_benchmarks)))
     parser.add_option("--inherit_env", metavar="ENVVARS", type="string", action="callback",
-                      callback=ParseEnvVars, default=[],                      
+                      callback=ParseEnvVars, default=[],
                       help=("Comma-separated list of environment variable names"
                             " that are inherited from the parent environment"
                             " when running benchmarking subprocesses."))
