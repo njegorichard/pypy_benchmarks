@@ -275,11 +275,9 @@ def main(argv):
                 bm_file = open(options.benchmarks_file, 'rt')
             except IOError as e:
                 parser.error('error opening benchmarks file: %s' % e)
-            try:
+            with bm_file:
                 for line in bm_file:
                     benchmarks.append(line.strip())
-            finally:
-                bm_file.close()
         else:
             benchmarks = list(BENCHMARK_SET)
 
