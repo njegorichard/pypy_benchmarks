@@ -131,11 +131,14 @@ def main(argv):
          'json file.'))
     benchmark_group.add_option(
         "-b", "--benchmarks", metavar="BM_LIST",
-        default=','.join(BENCHMARK_SET),
         help=("Comma-separated list of benchmarks to run"
               " Valid benchmarks are: %s"
               ". (default: Run all listed benchmarks)"
               ) % ", ".join(sorted(BENCHMARK_SET)))
+    benchmark_group.add_option(
+        "-f", "--benchmarks-file", metavar="BM_FILE",
+        help=("Read the list of benchmarks to run from this file (one "
+              "benchmark name per line).  Do not specify both this and -b."))
     benchmark_group.add_option(
         '-c', '--changed', default=sys.executable,
         help=('pypy-c or another modified python interpreter to run against. '
@@ -258,7 +261,28 @@ def main(argv):
     options, args = parser.parse_args(argv)
 
     upload_options = get_upload_options(options)
-    benchmarks = [benchmark.strip() for benchmark in options.benchmarks.split(',')]
+    if options.benchmarks is not None:
+        if options.benchmarks_file is not None:
+            parser.error(
+                '--benchmarks and --benchmarks-file are mutually exclusive')
+        else:
+            benchmarks = [benchmark.strip()
+                          for benchmark in options.benchmarks.split(',')]
+    else:
+        if options.benchmarks_file is not None:
+            benchmarks = []
+            try:
+                bm_file = open(options.benchmarks_file, 'rt')
+            except IOError as e:
+                parser.error('error opening benchmarks file: %s' % e)
+            try:
+                for line in bm_file:
+                    benchmarks.append(line.strip())
+            finally:
+                bm_file.close()
+        else:
+            benchmarks = list(BENCHMARK_SET)
+
     for benchmark in benchmarks:
         if benchmark not in BENCHMARK_SET:
             raise WrongBenchmark(benchmark)
