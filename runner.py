@@ -258,7 +258,7 @@ def main(argv):
     options, args = parser.parse_args(argv)
 
     upload_options = get_upload_options(options)
-    benchmarks = options.benchmarks.split(',')
+    benchmarks = [benchmark.strip() for benchmark in options.benchmarks.split(',')]
     for benchmark in benchmarks:
         if benchmark not in BENCHMARK_SET:
             raise WrongBenchmark(benchmark)
