@@ -1,0 +1,5 @@
+# pack-refs with: peeled 
+6e7db00251fb9d816e9bd9cfb4f664aa543385b5 refs/remotes/origin/fab-to-invoke
+419ba27469c81670135d0bcdca9ab5474f3c3a8b refs/remotes/origin/master
+c05bd1cb0d915ef2c74d7f1f57d6eb7e409f7d75 refs/remotes/origin/test-pypy
+10b677ee691d52600ddfdbd5556956962f853f8d refs/remotes/origin/tim/jitview
