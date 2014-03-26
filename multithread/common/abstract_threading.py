@@ -62,7 +62,7 @@ class ThreadPool(object):
 
 
 import multiprocessing
-_thread_pool = ThreadPool(3 * multiprocessing.cpu_count())
+_thread_pool = ThreadPool(1.5 * multiprocessing.cpu_count())
 
 
 

@@ -127,24 +127,15 @@ def trace(ray, objects, light, maxRecur):
 
 tasks = 0
 def task(x, h, cameraPos, objs, lightSource):
-    # force a transaction break here (STM not yet smart enough
-    # to figure out that it should break here)
-    time.sleep(0)
-    
     with atomic:
         for y in range(h):
             ray = Ray(cameraPos,
                       (Vector(x/50.0-5,y/50.0-5,0)-cameraPos).normal())
             trace(ray, objs, lightSource, 10)
 
-    # force a transaction break. updating a global var should
-    # be done in a separate transaction:
-    time.sleep(0)
-    
     global tasks
     with atomic:
         tasks -= 1
-    time.sleep(0)
 
 futures = []
 def future_dispatcher(ths, *args):
@@ -157,7 +148,6 @@ def future_dispatcher(ths, *args):
         tasks += 1
     
     futures.append(Future(task, *args))
-    time.sleep(0)
 
 
 
