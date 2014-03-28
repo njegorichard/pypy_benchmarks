@@ -125,7 +125,6 @@ def trace(ray, objects, light, maxRecur):
 
 
 
-tasks = 0
 def task(x, h, cameraPos, objs, lightSource):
     with atomic:
         for y in range(h):
@@ -133,20 +132,8 @@ def task(x, h, cameraPos, objs, lightSource):
                       (Vector(x/50.0-5,y/50.0-5,0)-cameraPos).normal())
             trace(ray, objs, lightSource, 10)
 
-    global tasks
-    with atomic:
-        tasks -= 1
-
 futures = []
 def future_dispatcher(ths, *args):
-    global tasks
-    
-    while tasks >= ths:
-        time.sleep(0)
-
-    with atomic:
-        tasks += 1
-    
     futures.append(Future(task, *args))
 
 
@@ -167,13 +154,11 @@ def run(ths=8, w=1024, h=1024):
     cameraPos = Vector(0,0,20)
     
     for x in range(w):
-        print x
         future_dispatcher(ths, x, h, cameraPos, objs, lightSource)
 
     for f in futures:
         f()
     del futures[:]
-    assert tasks == 0
 
 
 if __name__ == '__main__':
