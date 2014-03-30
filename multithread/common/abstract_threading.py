@@ -1,6 +1,6 @@
 from Queue import Queue, Empty, Full
 from threading import Thread, Condition, Lock
-import thread
+import thread, atexit, sys
 
 try:
     from __pypy__.thread import atomic, getsegmentlimit
@@ -30,14 +30,21 @@ class Worker(Thread):
 class ThreadPool(object):
     def __init__(self):
         self.input_queue = Queue()
-        for n in range(getsegmentlimit()):
-            Worker(self.input_queue)
+        n_workers = getsegmentlimit()
+        self.workers = [Worker(self.input_queue) for i in range(n_workers)]
 
     def add_task(self, func, *args, **kwds):
         self.input_queue.put((func, args, kwds))
 
-_thread_pool = ThreadPool()
+    def shutdown(self):
+        for w in self.workers:
+            self.input_queue.put((sys.exit, (), {}))
+        for w in self.workers:
+            w.join()
 
+
+_thread_pool = ThreadPool()
+atexit.register(_thread_pool.shutdown)
 
 
 
