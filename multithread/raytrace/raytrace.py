@@ -126,11 +126,13 @@ def trace(ray, objects, light, maxRecur):
 
 
 def task(x, h, cameraPos, objs, lightSource):
+    time.sleep(0)    # XXX
     with atomic:
         for y in range(h):
             ray = Ray(cameraPos,
                       (Vector(x/50.0-5,y/50.0-5,0)-cameraPos).normal())
             trace(ray, objs, lightSource, 10)
+    time.sleep(0)    # XXX
 
 futures = []
 def future_dispatcher(ths, *args):
