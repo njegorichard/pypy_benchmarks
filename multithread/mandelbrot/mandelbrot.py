@@ -1,5 +1,5 @@
 from common.abstract_threading import Future, atomic
-import Image, sys
+import sys
 
 
 def calculate(a, b, im_size, max_iter=255):
@@ -28,6 +28,7 @@ def calculate(a, b, im_size, max_iter=255):
     return result
 
 def save_img(image, file_name='out.png'):
+    import Image
     im = Image.new("RGB", (len(image[0]), len(image)))
     out = im.load()
 
