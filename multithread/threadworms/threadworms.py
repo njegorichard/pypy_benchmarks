@@ -56,7 +56,7 @@ class Worm(threading.Thread): # "Thread" is a class in the "threading" module.
 
 
     def run(self):
-        for _ in xrange(NUM_STEPS):
+        for _ in range(NUM_STEPS):
             if self.rnd.randint(0, 100) < 20: # 20% to change direction
                 self.direction = self.rnd.choice((UP, DOWN, LEFT, RIGHT))
 
@@ -127,7 +127,7 @@ class Worm(threading.Thread): # "Thread" is a class in the "threading" module.
 def run(worms=2, steps=10000000):
     global DISPLAYSURF, NUM_WORMS, NUM_STEPS, GRID
     NUM_WORMS = int(worms)
-    NUM_STEPS = int(steps) / NUM_WORMS
+    NUM_STEPS = int(steps) // NUM_WORMS
 
     GRID = []
     for x in range(CELLS_WIDE):
