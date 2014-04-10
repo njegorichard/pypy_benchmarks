@@ -1,6 +1,6 @@
 # https://github.com/MartinThoma/algorithms/tree/master/datastructures
 
-from common.abstract_threading import atomic, Future
+from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
 import time, threading
 
 import random
@@ -330,6 +330,7 @@ def run(threads=2, operations=2000000):
     threads = int(threads)
     operations = int(operations)
 
+    set_thread_pool(ThreadPool(threads))
     thread_local.rnd = random
 
     tree = BTree(20)

@@ -28,9 +28,10 @@ class Worker(Thread):
 
 
 class ThreadPool(object):
-    def __init__(self):
+    def __init__(self, n_workers=None):
         self.input_queue = Queue()
-        n_workers = getsegmentlimit()
+        if n_workers is None:
+            n_workers = getsegmentlimit()
         self.workers = [Worker(self.input_queue) for i in range(n_workers)]
 
     def add_task(self, func, *args, **kwds):
@@ -46,6 +47,9 @@ class ThreadPool(object):
 _thread_pool = ThreadPool()
 atexit.register(_thread_pool.shutdown)
 
+def set_thread_pool(th):
+    global _thread_pool
+    _thread_pool = th
 
 
 class Future(object):

@@ -1,6 +1,6 @@
 # https://github.com/kunigami/blog-examples/tree/master/2012-09-23-skip-list
 
-from common.abstract_threading import atomic, Future
+from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
 import time, threading
 
 import random
@@ -87,7 +87,6 @@ class SkipList:
 
 OPS = [SkipList.find] * 98 + [SkipList.insert, SkipList.remove]
 
-
 def task(id, slist, ops):
     print "start task with %s ops" % ops
     r = random.Random()
@@ -114,6 +113,7 @@ def run(threads=2, operations=2000000):
     threads = int(threads)
     operations = int(operations)
 
+    set_thread_pool(ThreadPool(threads))
     thread_local.rnd = random
 
     slist = SkipList()

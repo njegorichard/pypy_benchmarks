@@ -2,7 +2,7 @@
 # Date: 14.03.2013
 
 from math import sqrt, pow, pi
-from common.abstract_threading import atomic, Future
+from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
 import time
 
 AMBIENT = 0.1
@@ -133,6 +133,8 @@ def task(x, h, cameraPos, objs, lightSource):
                       (Vector(x/50.0-5,y/50.0-5,0)-cameraPos).normal())
             trace(ray, objs, lightSource, 10)
     time.sleep(0)    # XXX
+    return x
+
 
 futures = []
 def future_dispatcher(ths, *args):
@@ -146,6 +148,7 @@ def run(ths=8, w=1024, h=1024):
     w = int(w)
     h = int(h)
 
+    set_thread_pool(ThreadPool(ths))
     objs = []
     objs.append(Sphere( Vector(-2,0,-10), 2, Vector(0,255,0)))
     objs.append(Sphere( Vector(2,0,-10), 3.5, Vector(255,0,0)))
@@ -154,12 +157,12 @@ def run(ths=8, w=1024, h=1024):
     lightSource = Vector(0,10,0)
 
     cameraPos = Vector(0,0,20)
-    
+
     for x in range(w):
         future_dispatcher(ths, x, h, cameraPos, objs, lightSource)
 
     for f in futures:
-        f()
+        print f()
     del futures[:]
 
 
