@@ -1,10 +1,9 @@
 from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
-from SocketServer import ThreadingMixIn
-from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+from BaseHTTPServer import HTTPServer
 
-import threading, socket, time
+import threading, time
 
-from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
+from wsgiref.simple_server import WSGIRequestHandler
 
 class ThreadedHTTPServer(HTTPServer):
     """Handle requests in a separate thread."""
@@ -44,22 +43,60 @@ class ThreadedHTTPServer(HTTPServer):
 
 
 
-from bottle import route, run, ServerAdapter
+import bottle
+import subprocess, sys, os
 
-class ThreadedServer(ServerAdapter):
+class ThreadedServer(bottle.ServerAdapter):
     def run(self, app): # pragma: no cover
         srv = ThreadedHTTPServer((self.host, self.port), WSGIRequestHandler)
         srv.set_app(app)
         srv.serve_forever()
 
 
-@route('/')
+@bottle.route('/')
 def index():
     time.sleep(0.5)
     return "hi from " + threading.currentThread().getName()
 
 
+def run(threads=4, runtime=10, clients=8):
+    threads = int(threads)
+    runtime = int(runtime)
+    clients = int(clients)
+    PORT = 21634
+
+    set_thread_pool(ThreadPool(threads))
+
+    def bottle_server():
+        bottle.run(server=ThreadedServer,
+                   host='localhost', port=PORT)
+
+    bs = threading.Thread(target=bottle_server)
+    bs.setDaemon(True)
+    bs.start()
+
+    print "wait for startup"
+    time.sleep(5)
+    print "hopefully ready now"
+
+    try:
+        print "execute openload:"
+        p = subprocess.Popen(['openload',
+                              '-l', str(runtime),
+                              '-o', 'CSV',
+                              'localhost:%s' % PORT, str(clients)],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+    except OSError as e:
+        sys.stderr.write("Error trying to execute 'openload'\n%s" % e)
+        os.exit(1)
+
+    returncode = p.wait()
+    out, err = p.communicate()
+    if returncode != 0:
+        sys.stderr.write("'openload' returned an error\n%s" % e)
+        os.exit(1)
+    print out, err
+
 if __name__ == "__main__":
-    set_thread_pool(ThreadPool(8))
-    run(server=ThreadedServer, # debug=True,
-        host='localhost', port=8080)
+    run()
