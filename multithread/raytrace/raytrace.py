@@ -1,7 +1,7 @@
 # From http://www.reddit.com/r/tinycode/comments/169ri9/ray_tracer_in_140_sloc_of_python_with_picture/
 # Date: 14.03.2013
 
-from math import sqrt, pow, pi
+from math import sqrt, pi
 from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
 import time
 
@@ -125,14 +125,14 @@ def trace(ray, objects, light, maxRecur):
 
 
 
-def task(x, h, cameraPos, objs, lightSource):
-    time.sleep(0)    # XXX
-    with atomic:
-        for y in range(h):
+def task(img, x, h, cameraPos, objs, lightSource):
+    line = img[x]
+    for y in range(h):
+        with atomic:
             ray = Ray(cameraPos,
                       (Vector(x/50.0-5,y/50.0-5,0)-cameraPos).normal())
-            trace(ray, objs, lightSource, 10)
-    time.sleep(0)    # XXX
+            col = trace(ray, objs, lightSource, 10)
+            line[y] = (col.x + col.y + col.z) / 3.0
     return x
 
 
@@ -157,9 +157,11 @@ def run(ths=8, w=1024, h=1024):
     lightSource = Vector(0,10,0)
 
     cameraPos = Vector(0,0,20)
-
+    img = []
     for x in range(w):
-        future_dispatcher(ths, x, h, cameraPos, objs, lightSource)
+        img.append([0.0] * h)
+    for x in range(w):
+        future_dispatcher(ths, img, x, h, cameraPos, objs, lightSource)
 
     for f in futures:
         print f()
