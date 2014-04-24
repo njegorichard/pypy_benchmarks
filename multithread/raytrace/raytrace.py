@@ -165,6 +165,10 @@ def run(ths=8, w=1024, h=1024):
         print f()
     del futures[:]
 
+    # shutdown current pool
+    set_thread_pool(None)
+
+
 
 if __name__ == '__main__':
     run()

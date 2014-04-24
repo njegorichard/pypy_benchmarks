@@ -1,4 +1,4 @@
-from common.abstract_threading import Future, atomic
+from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
 import sys
 
 
@@ -59,6 +59,7 @@ def run(threads=2):
     br, bi = 1.0, 1.5
     width, height = 4096, 4096
 
+    set_thread_pool(ThreadPool(threads))
     step = (bi - ai) / threads
     res = []
     ai = -1.5
@@ -71,6 +72,8 @@ def run(threads=2):
             ))
 
     res = [f() for f in res]
+
+    set_thread_pool(None)
     return merge_imgs(res)
 
 

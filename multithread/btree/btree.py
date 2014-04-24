@@ -347,6 +347,9 @@ def run(threads=2, operations=2000000):
     # print "tree:"
     # print tree
 
+    # shutdown current pool
+    set_thread_pool(None)
+
 
 
 

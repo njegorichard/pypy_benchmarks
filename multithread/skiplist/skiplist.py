@@ -130,6 +130,10 @@ def run(threads=2, operations=2000000):
     # print "list:"
     # slist.printList()
 
+    # shutdown current pool
+    set_thread_pool(None)
+
+
 
 
 

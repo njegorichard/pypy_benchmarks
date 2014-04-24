@@ -49,6 +49,8 @@ atexit.register(_thread_pool.shutdown)
 
 def set_thread_pool(th):
     global _thread_pool
+    if _thread_pool:
+        _thread_pool.shutdown()
     _thread_pool = th
 
 
