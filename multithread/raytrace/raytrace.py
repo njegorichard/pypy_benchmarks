@@ -160,15 +160,18 @@ def run(ths=8, w=1024, h=1024):
     img = []
     for x in range(w):
         img.append([0.0] * h)
+    parallel_time = time.time()
     for x in range(w):
         future_dispatcher(ths, img, x, h, cameraPos, objs, lightSource)
 
     for f in futures:
         print f()
     del futures[:]
+    parallel_time = time.time() - parallel_time
 
     # shutdown current pool
     set_thread_pool(None)
+    return parallel_time
 
 
 

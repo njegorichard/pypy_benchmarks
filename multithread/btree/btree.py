@@ -344,16 +344,18 @@ def run(threads=2, operations=2000000):
 
     c_len = operations // threads
     fs = []
+    parallel_time = time.time()
     for i in xrange(threads):
         fs.append(Future(task, i, tree, c_len))
     for f in fs:
         f()
-
+    parallel_time = time.time() - parallel_time
     # print "tree:"
     # print tree
 
     # shutdown current pool
     set_thread_pool(None)
+    return parallel_time
 
 
 

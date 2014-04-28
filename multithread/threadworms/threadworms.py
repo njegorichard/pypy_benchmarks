@@ -157,6 +157,7 @@ def run(worms=2, steps=10000000):
 
     # Create the worm objects.
     worms = [] # a list that contains all the worm objects
+    parallel_time = time.time()
     for i in range(NUM_WORMS):
         worms.append(Worm())
     for w in worms:
@@ -164,6 +165,8 @@ def run(worms=2, steps=10000000):
 
     for t in worms:
         t.join()
+    parallel_time = time.time() - parallel_time
+    return parallel_time
 
 
 

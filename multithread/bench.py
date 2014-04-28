@@ -34,7 +34,7 @@ def std_dev(xs):
 def get_error(times):
     ts = sorted(times)[:args.k]
     best = float(ts[0])
-    
+
     return max((t / best) - 1.0 for t in ts)
 
 def within_error(args, times):
@@ -51,6 +51,7 @@ def main(args):
     test = import_file(os.path.basename(args.file))
 
     times = []
+    results = []
     k = 1
     try:
         while True:
@@ -60,14 +61,15 @@ def main(args):
 
             test_time = time.time()
             if args.p:
-                test.run(*args.more)
+                results.append(test.run(*args.more))
             else:
                 with nostdout():
-                    test.run(*args.more)
+                    results.append(test.run(*args.more))
             times.append(time.time() - test_time)
 
             if not args.q:
                 print "took {} s".format(times[-1])
+                print "returned", results[-1]
 
             if k >= args.k:
                 if within_error(args, times):
@@ -83,7 +85,9 @@ def main(args):
             k += 1
     finally:
         if not args.q:
-            print "times:", times
+            print "== times ==\n", "\n".join(map(str, times))
+            print "== reported results ==\n", "\n".join(
+                map(str, filter(None, results)))
 
         if times:
             times = sorted(times)[:args.k]

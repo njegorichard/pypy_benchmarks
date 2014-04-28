@@ -10,6 +10,49 @@ except ImportError:
         return 1
 
 
+class TLQueue_concurrent(object):
+    def __init__(self):
+        my_id = thread.get_ident()
+        self._tl_items = {my_id : []}
+        self._new_items = Condition()
+        self._c = 0
+
+    def put(self, v):
+        # conflicts with any put() and get()s from
+        # the chosen queue:
+        c = (id(v) // 5) % len(self._tl_items)
+        items = self._tl_items.values()[c]
+
+        with self._new_items:
+            items.append(v)
+            self._new_items.notify_all()
+
+    def _get_my_items(self):
+        my_id = thread.get_ident()
+        try:
+            items = self._tl_items[my_id]
+        except KeyError:
+            items = []
+            self._tl_items[my_id] = items
+        return items
+
+    def get(self):
+        # tries first to get item from its
+        # own thread-local queue
+        items = self._get_my_items()
+        with atomic:
+            if items:
+                return items.pop()
+
+        while True:
+            with self._new_items:
+                # steal from other queues
+                for its in self._tl_items.values():
+                    with atomic:
+                        if its:
+                            return its.pop()
+                self._new_items.wait()
+
 class TLQueue(object):
     def __init__(self):
         self.items = []

@@ -1,5 +1,5 @@
 from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
-import sys
+import sys, time
 
 
 def calculate(a, b, im_size, max_iter=255):
@@ -11,8 +11,7 @@ def calculate(a, b, im_size, max_iter=255):
     real_step = (br - ar) / (width - 1)
     print "real/width:%s, imag/height:%s" % (real_step, imag_step)
 
-    with atomic:
-        result = [[0] * width for y in xrange(height)]
+    result = [[0] * width for y in xrange(height)]
     for y in xrange(height):
         zi = ai + y * imag_step
         for x in xrange(width):
@@ -64,6 +63,7 @@ def run(threads=2):
     res = []
     ai = -1.5
     bi = ai + step
+    parallel_time = time.time()
     for i in xrange(threads):
         res.append(Future(calculate,
                           a=(ar, ai + i * step),
@@ -72,9 +72,11 @@ def run(threads=2):
             ))
 
     res = [f() for f in res]
+    parallel_time = time.time() - parallel_time
 
     set_thread_pool(None)
-    return merge_imgs(res)
+    merge_imgs(res)
+    return parallel_time
 
 
 
