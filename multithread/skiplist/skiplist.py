@@ -86,6 +86,7 @@ class SkipList:
 
 
 OPS = [SkipList.find] * 98 + [SkipList.insert, SkipList.remove]
+ITEM_RANGE = 10000
 
 def task(id, slist, ops):
     print "start task with %s ops" % ops
@@ -95,7 +96,7 @@ def task(id, slist, ops):
 
     for _ in xrange(ops):
         op = r.choice(OPS)
-        elem = r.randint(1, 10000)
+        elem = r.randint(1, ITEM_RANGE)
         with atomic:
             op(slist, elem)
 
@@ -118,7 +119,7 @@ def run(threads=2, operations=2000000):
 
     slist = SkipList()
     for _ in xrange(1000):
-        slist.insert(random.randint(1, 1000))
+        slist.insert(random.randint(1, ITEM_RANGE))
 
     c_len = operations // threads
     fs = []

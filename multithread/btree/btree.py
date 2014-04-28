@@ -5,8 +5,6 @@ import time, threading
 
 import random
 
-thread_local = threading.local()
-
 import bisect
 
 
@@ -195,6 +193,9 @@ class BTree(object):
 
     def insert(self, item):
         ancestors = self._path_to(item)
+        if self._present(item, ancestors):
+            return False
+
         node, index = ancestors[-1]
         while getattr(node, "children", None):
             node = node.children[index]
@@ -202,6 +203,7 @@ class BTree(object):
             ancestors.append((node, index))
         node, index = ancestors.pop()
         node.insert(index, item, ancestors)
+        return True
 
     def remove(self, item):
         ancestors = self._path_to(item)
@@ -301,18 +303,22 @@ class BTree(object):
         self._root = self.BRANCH(self, contents=seps, children=levels[-1])
 
 
+######################################################################
+######################################################################
+######################################################################
+
 OPS = [BTree.__contains__] * 98 + [BTree.insert, BTree.remove]
 
+ITEM_RANGE = 10000
 
 def task(id, tree, ops):
     print "start task with %s ops" % ops
     r = random.Random()
     r.seed(id)
-    thread_local.rnd = r
 
     for _ in xrange(ops):
         op = r.choice(OPS)
-        elem = r.randint(1, 10000)
+        elem = r.randint(1, ITEM_RANGE)
         with atomic:
             op(tree, elem)
 
@@ -331,11 +337,10 @@ def run(threads=2, operations=2000000):
     operations = int(operations)
 
     set_thread_pool(ThreadPool(threads))
-    thread_local.rnd = random
 
     tree = BTree(20)
     for _ in xrange(1000):
-        tree.insert(random.randint(1, 1000))
+        tree.insert(random.randint(1, ITEM_RANGE))
 
     c_len = operations // threads
     fs = []

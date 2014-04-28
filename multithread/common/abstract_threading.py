@@ -1,6 +1,6 @@
 from Queue import Queue, Empty, Full
-from threading import Thread, Condition, Lock
-import thread, atexit, sys
+from threading import Thread, Condition, Lock, local
+import thread, atexit, sys, time
 
 try:
     from __pypy__.thread import atomic, getsegmentlimit
@@ -8,6 +8,31 @@ except ImportError:
     atomic = Lock()
     def getsegmentlimit():
         return 1
+
+
+class TLQueue(object):
+    def __init__(self):
+        self.items = []
+        self._new_items = Condition()
+
+    def put(self, v):
+        self.items.append(v)
+        with self._new_items:
+            self._new_items.notify_all()
+
+    def get(self):
+        items = self.items
+        with atomic:
+            if items:
+                return items.pop()
+
+        while True:
+            with self._new_items:
+                with atomic:
+                    if items:
+                        return items.pop()
+
+                self._new_items.wait()
 
 
 class Worker(Thread):
@@ -29,7 +54,7 @@ class Worker(Thread):
 
 class ThreadPool(object):
     def __init__(self, n_workers=None):
-        self.input_queue = Queue()
+        self.input_queue = TLQueue()
         if n_workers is None:
             n_workers = getsegmentlimit()
         self.workers = [Worker(self.input_queue) for i in range(n_workers)]
