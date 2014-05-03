@@ -6,7 +6,7 @@
 # This is meant to be an educational example of multithreaded programming,
 # so I get kind of verbose in the comments.
 
-from common.abstract_threading import atomic, Future
+from common.abstract_threading import atomic, Future, print_abort_info
 import time
 import random, sys, threading
 
@@ -61,6 +61,7 @@ class Worm(threading.Thread): # "Thread" is a class in the "threading" module.
                 self.direction = self.rnd.choice((UP, DOWN, LEFT, RIGHT))
 
             with atomic:
+                print_abort_info(0.01)
                 # GRID_LOCK.acquire() # don't return (that is, block) until this thread can acquire the lock
 
                 nextx, nexty = self.getNextPosition()

@@ -2,12 +2,7 @@ from Queue import Queue, Empty, Full
 from threading import Thread, Condition, Lock, local
 import thread, atexit, sys, time
 
-try:
-    from __pypy__.thread import atomic, getsegmentlimit
-except ImportError:
-    atomic = Lock()
-    def getsegmentlimit():
-        return 1
+from atomic import atomic, getsegmentlimit, print_abort_info
 
 
 class TLQueue_concurrent(object):
