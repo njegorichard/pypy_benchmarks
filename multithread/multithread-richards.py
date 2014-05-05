@@ -370,7 +370,6 @@ class Richards(object):
     def __init__(self):
         self.finished_lock = thread.allocate_lock()
         self.finished_lock.acquire()
-        self.taskWorkArea = TaskWorkArea()
 
     def run_and_unlock(self, to_do):
         os.write(1, 'running...\n')
@@ -382,15 +381,14 @@ class Richards(object):
             except IndexError:
                 break
             iterations += 1
-            self.result = self.run(self.taskWorkArea)
+            self.result = self.run()
         os.write(1, 'done, iterations=%d, result=%r\n' % (iterations, self.result))
         self.finished_lock.release()
 
-    def run(self, taskWorkArea):
+    def run(self):
         #with atomic:
         if 1:
-            taskWorkArea.holdCount = 0
-            taskWorkArea.qpktCount = 0
+            taskWorkArea = TaskWorkArea()
 
             IdleTask(I_IDLE, 1, 10000, TaskState().running(), IdleTaskRec(),
                      taskWorkArea)
