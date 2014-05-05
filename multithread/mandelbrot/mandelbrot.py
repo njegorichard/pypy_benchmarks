@@ -52,23 +52,25 @@ def merge_imgs(imgs):
     return res
 
 
-def run(threads=2):
+def run(threads=2, stripes=16):
     threads = int(threads)
+    stripes = int(stripes)
+    assert stripes >= threads
     ar, ai = -2.0, -1.5
     br, bi = 1.0, 1.5
     width, height = 4096, 4096
 
     set_thread_pool(ThreadPool(threads))
-    step = (bi - ai) / threads
+    step = (bi - ai) / stripes
     res = []
     ai = -1.5
     bi = ai + step
     parallel_time = time.time()
-    for i in xrange(threads):
+    for i in xrange(stripes):
         res.append(Future(calculate,
                           a=(ar, ai + i * step),
                           b=(br, bi + i * step),
-                          im_size=(width, int(height / threads))
+                          im_size=(width, int(height / stripes))
             ))
 
     res = [f() for f in res]
