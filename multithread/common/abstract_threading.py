@@ -1,8 +1,15 @@
 from Queue import Queue, Empty, Full
-from threading import Thread, Condition, Lock, local
+from threading import Thread, Condition, RLock, local
 import thread, atexit, sys, time
 
-from atomic import atomic, getsegmentlimit, print_abort_info
+try:
+    from atomic import atomic, getsegmentlimit, print_abort_info
+except:
+    atomic = RLock()
+    def getsegmentlimit():
+        return 1
+    def print_abort_info(tm=0.0):
+        pass
 
 
 class TLQueue_concurrent(object):
@@ -102,6 +109,7 @@ class ThreadPool(object):
 
     def shutdown(self):
         for w in self.workers:
+            self.input_queue.put((print_abort_info, (), {}))
             self.input_queue.put((sys.exit, (), {}))
         for w in self.workers:
             w.join()

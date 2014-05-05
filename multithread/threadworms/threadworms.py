@@ -130,9 +130,16 @@ def run(worms=2, steps=10000000):
     NUM_WORMS = int(worms)
     NUM_STEPS = int(steps) // NUM_WORMS
 
-    GRID = []
+    # using a deque instead of a list is kind of cheating
+    # since it is a linked list of blocks. This means
+    # that there are less conflicts.
+    # So maybe remove this again when we support array-barriers in STM
+    import collections
+    list_to_use = collections.deque #list
+
+    GRID = list_to_use()
     for x in range(CELLS_WIDE):
-        GRID.append([None] * CELLS_HIGH)
+        GRID.append(list_to_use([None] * CELLS_HIGH))
 #GRID_LOCK = threading.Lock() # pun was not intended
 
     # Draw some walls on the grid
