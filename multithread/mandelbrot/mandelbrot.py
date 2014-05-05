@@ -27,7 +27,7 @@ def calculate(a, b, im_size, max_iter=255):
     return result
 
 def save_img(image, file_name='out.png'):
-    import Image
+    from PIL import Image
     im = Image.new("RGB", (len(image[0]), len(image)))
     out = im.load()
 
@@ -53,6 +53,7 @@ def merge_imgs(imgs):
 
 
 def run(threads=2, stripes=16):
+    global out_image
     threads = int(threads)
     stripes = int(stripes)
     assert stripes >= threads
@@ -77,12 +78,12 @@ def run(threads=2, stripes=16):
     parallel_time = time.time() - parallel_time
 
     set_thread_pool(None)
-    merge_imgs(res)
+    out_image = merge_imgs(res)
     return parallel_time
 
 
 
 if __name__ == '__main__':
-    image = run(int(sys.argv[1]))
-    save_to_file(image)
-    # save_img(image) don't run on STM, allocates 4000GB of memory
+    image = run(int(sys.argv[1]), int(sys.argv[2]))
+    #save_to_file(out_image)
+    save_img(out_image)
