@@ -52,14 +52,14 @@ def merge_imgs(imgs):
     return res
 
 
-def run(threads=2, stripes=16):
+def run(threads=2, stripes=64, w=4096, h=4096):
     global out_image
     threads = int(threads)
     stripes = int(stripes)
     assert stripes >= threads
     ar, ai = -2.0, -1.5
     br, bi = 1.0, 1.5
-    width, height = 4096, 4096
+    width, height = int(w), int(h)
 
     set_thread_pool(ThreadPool(threads))
     step = (bi - ai) / stripes

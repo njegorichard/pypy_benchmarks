@@ -106,13 +106,13 @@ class TaskState(object):
         self.task_waiting = False
         self.task_holding = False
         return self
-        
+
     def waitingWithPacket(self):
         self.packet_pending = True
         self.task_waiting = True
         self.task_holding = False
         return self
-        
+
     def isPacketPending(self):
         return self.packet_pending
 
@@ -236,7 +236,7 @@ class Task(TaskState):
         if t is None:
             raise Exception("Bad task id %d" % id)
         return t
-            
+
 
 # DeviceTask
 
@@ -310,7 +310,7 @@ class IdleTask(Task):
         else:
             i.control = i.control/2 ^ 0xd008
             return self.release(I_DEVB)
-            
+
 
 # WorkTask
 
@@ -372,7 +372,7 @@ class Richards(object):
         self.finished_lock.acquire()
 
     def run_and_unlock(self, to_do):
-        os.write(1, 'running...\n')
+        print 'running...'
         iterations = 0
         self.result = True
         while 1:
@@ -382,7 +382,7 @@ class Richards(object):
                 break
             iterations += 1
             self.result = self.run()
-        os.write(1, 'done, iterations=%d, result=%r\n' % (iterations, self.result))
+        print 'done, iterations=%d, result=%r' % (iterations, self.result)
         self.finished_lock.release()
 
     def run(self):
@@ -415,7 +415,7 @@ class Richards(object):
                        taskWorkArea)
             DeviceTask(I_DEVB, 5000, wkq, TaskState().waiting(), DeviceTaskRec(),
                        taskWorkArea)
-            
+
             schedule(taskWorkArea)
 
             if taskWorkArea.holdCount == 9297 and taskWorkArea.qpktCount == 23246:
