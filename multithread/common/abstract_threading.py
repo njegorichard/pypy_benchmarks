@@ -3,12 +3,15 @@ from threading import Thread, Condition, RLock, local
 import thread, atexit, sys, time
 
 try:
-    from atomic import atomic, getsegmentlimit, print_abort_info
+    from atomic import (atomic, getsegmentlimit, print_abort_info,
+                        hint_commit_soon)
 except:
     atomic = RLock()
     def getsegmentlimit():
         return 1
     def print_abort_info(tm=0.0):
+        pass
+    def hint_commit_soon():
         pass
 
 
@@ -140,7 +143,9 @@ class Future(object):
     def _task(self, func, *args, **kwargs):
         with self._cond:
             try:
+                hint_commit_soon()
                 self._result = func(*args, **kwargs)
+                hint_commit_soon()
             except Exception as e:
                 self._exception = e
             finally:

@@ -1,4 +1,5 @@
-from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
+from common.abstract_threading import (
+    atomic, Future, set_thread_pool, ThreadPool, hint_commit_soon)
 from BaseHTTPServer import HTTPServer
 
 import threading, time
@@ -55,7 +56,12 @@ class ThreadedServer(bottle.ServerAdapter):
 
 @bottle.route('/')
 def index():
-    time.sleep(0.5)
+    with atomic:
+        i = 10000
+        res = ""
+        while i:
+            i -= 1
+            res += str(i)
     return "hi from " + threading.currentThread().getName()
 
 

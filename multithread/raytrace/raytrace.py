@@ -2,7 +2,9 @@
 # Date: 14.03.2013
 
 from math import sqrt, pi
-from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
+from common.abstract_threading import (
+    atomic, Future, set_thread_pool, ThreadPool,
+    print_abort_info, hint_commit_soon)
 import time
 
 AMBIENT = 0.1
@@ -133,13 +135,13 @@ def task(img, x, h, cameraPos, objs, lightSource):
                       (Vector(x/50.0-5,y/50.0-5,0)-cameraPos).normal())
             col = trace(ray, objs, lightSource, 10)
             line[y] = (col.x + col.y + col.z) / 3.0
+        #print_abort_info(0.00001)
     return x
 
 
 futures = []
 def future_dispatcher(ths, *args):
     futures.append(Future(task, *args))
-
 
 
 

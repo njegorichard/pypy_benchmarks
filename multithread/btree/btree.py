@@ -1,6 +1,8 @@
 # https://github.com/MartinThoma/algorithms/tree/master/datastructures
 
-from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
+from common.abstract_threading import (
+    atomic, Future, set_thread_pool, ThreadPool,
+    hint_commit_soon, print_abort_info)
 import time, threading
 
 import random
@@ -203,6 +205,7 @@ class BTree(object):
             ancestors.append((node, index))
         node, index = ancestors.pop()
         node.insert(index, item, ancestors)
+        hint_commit_soon()
         return True
 
     def remove(self, item):
@@ -211,6 +214,7 @@ class BTree(object):
         if self._present(item, ancestors):
             node, index = ancestors.pop()
             node.remove(index, ancestors)
+            hint_commit_soon()
         # else:
         #     raise ValueError("%r not in %s" % (item, self.__class__.__name__))
 
@@ -307,7 +311,8 @@ class BTree(object):
 ######################################################################
 ######################################################################
 
-OPS = [BTree.__contains__] * 98 + [BTree.insert, BTree.remove]
+CONFLICTING = [BTree.insert, BTree.remove]
+OPS = [BTree.__contains__] * 98 + CONFLICTING
 
 ITEM_RANGE = 10000
 
@@ -319,8 +324,12 @@ def task(id, tree, ops):
     for _ in xrange(ops):
         op = r.choice(OPS)
         elem = r.randint(1, ITEM_RANGE)
+        # cflts = op in CONFLICTING
+        # if cflts:
+        #     hint_commit_soon()
         with atomic:
             op(tree, elem)
+        #print_abort_info(0.00001)
 
     print "task ended"
 

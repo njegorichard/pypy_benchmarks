@@ -1,6 +1,8 @@
 # https://github.com/kunigami/blog-examples/tree/master/2012-09-23-skip-list
 
-from common.abstract_threading import atomic, Future, set_thread_pool, ThreadPool
+from common.abstract_threading import (atomic, Future,
+                                       set_thread_pool, ThreadPool,
+                                       print_abort_info, hint_commit_soon)
 import time, threading
 
 import random
@@ -52,7 +54,7 @@ class SkipList:
     def insert(self, elem):
         node = SkipNode(self.randomHeight(), elem)
 
-        # conflicts with every find():
+        # conflicts with everything else:
         self.maxHeight = max(self.maxHeight, len(node.next))
 
         while len(self.head.next) < len(node.next):
@@ -64,16 +66,19 @@ class SkipList:
                 node.next[i] = update[i].next[i]
                 update[i].next[i] = node
             self.len += 1
+        hint_commit_soon()
 
     def remove(self, elem):
         update = self.updateList(elem)
         x = self.find(elem, update)
         if x != None:
+            # conflicts with everything else:
             for i in reversed(range(len(x.next))):
                 update[i].next[i] = x.next[i]
                 if self.head.next[i] == None:
                     self.maxHeight -= 1
             self.len -= 1
+            hint_commit_soon()
 
     def printList(self):
         for i in range(len(self.head.next)-1, -1, -1):
@@ -84,9 +89,9 @@ class SkipList:
             print ''
 
 
-
-OPS = [SkipList.find] * 98 + [SkipList.insert, SkipList.remove]
-ITEM_RANGE = 10000
+CONFLICTING = [SkipList.insert, SkipList.remove]
+OPS = [SkipList.find] * 98 + CONFLICTING
+ITEM_RANGE = 1000000
 
 def task(id, slist, ops):
     print "start task with %s ops" % ops
@@ -97,8 +102,12 @@ def task(id, slist, ops):
     for _ in xrange(ops):
         op = r.choice(OPS)
         elem = r.randint(1, ITEM_RANGE)
+        # if op in CONFLICTING:
+        #     hint_commit_soon()
         with atomic:
             op(slist, elem)
+
+        #print_abort_info(0.0001)
 
     print "task ended"
 
