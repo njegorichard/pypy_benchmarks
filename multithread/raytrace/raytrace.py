@@ -7,9 +7,18 @@ from common.abstract_threading import (
     print_abort_info, hint_commit_soon)
 import time
 
+import platform
+if platform.python_implementation() == "Jython":
+    # be fair to jython and don't use a lock where none is required:
+    class fakeatomic:
+        def __enter__(self):
+            pass
+        def __exit__(self,*args):
+            pass
+    atomic = fakeatomic()
+
+
 AMBIENT = 0.1
-
-
 
 class Vector(object):
     def __init__(self,x,y,z):
