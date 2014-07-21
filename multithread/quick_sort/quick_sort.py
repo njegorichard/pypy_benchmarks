@@ -41,6 +41,7 @@ def qsort(xs, l0, n):
     qsort(xs, l, l0 + n - l)
 
 
+
 def qsort_f(xs, l0, n, level):
     if n < 2:
         return []
@@ -50,25 +51,35 @@ def qsort_f(xs, l0, n, level):
     r = l + n - 1
     while l <= r:
         with atomic:
-            if xs[l] < pivot:
+            xl = xs[l]
+            if xl < pivot:
                 l += 1
                 continue
-            if xs[r] > pivot:
+            xr = xs[r]
+            if xr > pivot:
                 r -= 1
                 continue
-            xs[l], xs[r] = xs[r], xs[l]
-        l += 1
-        r -= 1
+            xs[l], xs[r] = xr, xl
+            l += 1
+            r -= 1
 
     fs = []
     #right_amount = 1000 > n // 2 > 505
-    right_amount = level == 4
-    if right_amount:
-        fs.append(Future(qsort_f, xs, l0, r - l0 + 1, level+1))
-        fs.append(Future(qsort_f, xs, l, l0 + n - l, level+1))
+    do_futures = level == 4
+    largs = (xs, l0, r - l0 + 1, level+1)
+    rargs = (xs, l, l0 + n - l, level+1)
+    if do_futures:
+        fs.append(Future(qsort_f, *largs))
+        fs.append(Future(qsort_f, *rargs))
     else:
-        fs.extend(qsort_f(xs, l0, r - l0 + 1, level+1))
-        fs.extend(qsort_f(xs, l, l0 + n - l, level+1))
+        if level > 4 and n < 100:
+            with atomic:
+                fs.extend(qsort_f(*largs))
+            with atomic:
+                fs.extend(qsort_f(*rargs))
+        else:
+            fs.extend(qsort_f(*largs))
+            fs.extend(qsort_f(*rargs))
     #print_abort_info(0.0000001)
 
     return fs
@@ -79,25 +90,34 @@ def wait_for_futures(fs):
         f = fs.pop()
         fs.extend(f())
 
-def run(threads=2, n=100000):
+def run(threads=2, n=20000):
     threads = int(threads)
     n = int(n)
 
     set_thread_pool(ThreadPool(threads))
 
-
     to_sort = range(n)
-    random.seed(121)
-    random.shuffle(to_sort)
-    s = deque(to_sort)
-    # qsort(s, 0, len(s))
+    t = 0
+    for i in range(20):
+        with atomic:
+            random.seed(i)
+            random.shuffle(to_sort)
+            s = deque(to_sort)
+        # qsort(s, 0, len(s))
+        hint_commit_soon()
 
-    fs = qsort_f(s, 0, len(s), 0)
-    wait_for_futures(fs)
-
+        t -= time.time()
+        # start as future, otherwise we get more threads
+        # than we want (+1 for the main thread)
+        fs = Future(qsort_f, s, 0, len(s), 0)
+        wait_for_futures(fs())
+        #assert sorted(to_sort) == list(s)
+        t += time.time()
 
     # shutdown current pool
     set_thread_pool(None)
+
+    return t
 
 
 
