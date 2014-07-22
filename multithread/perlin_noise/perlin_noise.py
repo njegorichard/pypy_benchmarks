@@ -68,15 +68,15 @@ def grad(hash, x, y, z):
 def work(n, x):
     res = []
     hint_commit_soon()
-    for y in range(n):
-        with atomic:
-            for z in range(n):
-                res.append(perlin_noise(x, y, z))
+    with atomic:
+        for y in xrange(n):
+            for z in xrange(n):
+                res.append(perlin_noise(x/3., y/3., z/3.))
     hint_commit_soon()
     return res
 
 
-def run(threads=2, n=60):
+def run(threads=2, n=50):
     threads = int(threads)
     n = int(n)
 
