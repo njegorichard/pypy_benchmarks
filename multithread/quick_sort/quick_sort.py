@@ -64,21 +64,33 @@ def qsort_f(xs, l0, n, level):
             r -= 1
 
     fs = []
-    #right_amount = 1000 > n // 2 > 505
+    # only start futures on a single level:
     do_futures = level == 4
     largs = (xs, l0, r - l0 + 1, level+1)
     rargs = (xs, l, l0 + n - l, level+1)
+    leftf, rightf = False, False
+
     if do_futures:
-        fs.append(Future(qsort_f, *largs))
-        fs.append(Future(qsort_f, *rargs))
-    else:
-        if level > 4 and n < 100:
+        if largs[2] > 2000:
+            fs.append(Future(qsort_f, *largs))
+            leftf = True
+
+        if rargs[2] > 2000:
+            fs.append(Future(qsort_f, *rargs))
+            rightf = True
+
+    if not leftf:
+        if level >= 4 and largs[2] < 500:
             with atomic:
                 fs.extend(qsort_f(*largs))
+        else:
+            fs.extend(qsort_f(*largs))
+
+    if not rightf:
+        if level >= 4 and rargs[2] < 500:
             with atomic:
                 fs.extend(qsort_f(*rargs))
         else:
-            fs.extend(qsort_f(*largs))
             fs.extend(qsort_f(*rargs))
     #print_abort_info(0.0000001)
 
@@ -104,7 +116,6 @@ def run(threads=2, n=20000):
             random.shuffle(to_sort)
             s = deque(to_sort)
         # qsort(s, 0, len(s))
-        hint_commit_soon()
 
         t -= time.time()
         # start as future, otherwise we get more threads
