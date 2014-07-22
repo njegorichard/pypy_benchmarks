@@ -172,8 +172,10 @@ class AtomicFuture(Future):
     def _task(self, func, *args, **kwargs):
         with self._cond:
             try:
+                hint_commit_soon()
                 with atomic:
                     self._result = func(*args, **kwargs)
+                hint_commit_soon()
             except Exception as e:
                 self._exception = e
             finally:
