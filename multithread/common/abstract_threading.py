@@ -156,9 +156,10 @@ class Future(object):
 
 
     def __call__(self):
-        with self._cond:
-            while not self._done:
-                self._cond.wait()
+        if not self._done:
+            with self._cond:
+                while not self._done:
+                    self._cond.wait()
 
         if self._exception:
             raise self._exception
