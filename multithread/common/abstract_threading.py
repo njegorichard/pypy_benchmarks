@@ -4,7 +4,7 @@ import thread, atexit, sys, time
 
 try:
     from atomic import (atomic, getsegmentlimit, print_abort_info,
-                        hint_commit_soon)
+                        hint_commit_soon, is_atomic)
 except:
     atomic = RLock()
     def getsegmentlimit():
@@ -13,6 +13,8 @@ except:
         pass
     def hint_commit_soon():
         pass
+    def is_atomic():
+        return atomic._RLock__count > 0
 
 
 class TLQueue_concurrent(object):

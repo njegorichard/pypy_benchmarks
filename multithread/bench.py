@@ -86,6 +86,7 @@ def main(args):
     finally:
         if not args.q:
             print "== times ==\n", "\n".join(map(str, times))
+            print "== times short ==\n", str(times[-min(5, len(times)):])
             print "== reported results ==\n", "\n".join(
                 map(str, filter(None, results)))
 
