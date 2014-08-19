@@ -8,6 +8,7 @@ from common.abstract_threading import (
     atomic, Future, set_thread_pool, ThreadPool,
     hint_commit_soon, print_abort_info)
 
+
 import itertools
 from collections import deque
 
@@ -50,59 +51,52 @@ def qsort_f(xs, l0, n, level):
     l = l0
     r = l + n - 1
     while l <= r:
-        with atomic:
-            xl = xs[l]
-            if xl < pivot:
-                l += 1
-                continue
-            xr = xs[r]
-            if xr > pivot:
-                r -= 1
-                continue
-            xs[l], xs[r] = xr, xl
+        xl = xs[l]
+        if xl < pivot:
             l += 1
+            continue
+        xr = xs[r]
+        if xr > pivot:
             r -= 1
+            continue
+        xs[l], xs[r] = xr, xl
+        l += 1
+        r -= 1
 
     fs = []
-    # only start futures on a single level:
-    do_futures = level == 4
+    do_futures = level >= 4
     largs = (xs, l0, r - l0 + 1, level+1)
     rargs = (xs, l, l0 + n - l, level+1)
     leftf, rightf = False, False
 
     if do_futures:
-        if largs[2] > 2000:
+        if largs[2] > 1500:
             fs.append(Future(qsort_f, *largs))
             leftf = True
 
-        if rargs[2] > 2000:
+        if rargs[2] > 1500:
             fs.append(Future(qsort_f, *rargs))
             rightf = True
 
     if not leftf:
-        if level >= 4 and largs[2] < 500:
-            with atomic:
-                fs.extend(qsort_f(*largs))
-        else:
-            fs.extend(qsort_f(*largs))
+        fs.extend(qsort_f(*largs))
 
     if not rightf:
-        if level >= 4 and rargs[2] < 500:
-            with atomic:
-                fs.extend(qsort_f(*rargs))
-        else:
-            fs.extend(qsort_f(*rargs))
+        fs.extend(qsort_f(*rargs))
     #print_abort_info(0.0000001)
 
     return fs
 
 
 def wait_for_futures(fs):
+    c = 0
     while fs:
         f = fs.pop()
         fs.extend(f())
+        c += 1
+    print "Futures:", c
 
-def run(threads=2, n=20000):
+def run(threads=2, n=60000):
     threads = int(threads)
     n = int(n)
 
@@ -110,11 +104,10 @@ def run(threads=2, n=20000):
 
     to_sort = range(n)
     t = 0
-    for i in range(20):
-        with atomic:
-            random.seed(i)
-            random.shuffle(to_sort)
-            s = deque(to_sort)
+    for i in range(5):
+        random.seed(i+32)
+        random.shuffle(to_sort)
+        s = deque(to_sort)
         # qsort(s, 0, len(s))
 
         t -= time.time()
