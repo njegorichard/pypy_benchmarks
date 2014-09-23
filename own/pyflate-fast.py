@@ -645,7 +645,7 @@ import sys, os
 
 def _main():
     filename = os.path.join(os.path.dirname(__file__), "interpreter.tar.bz2")
-    input = open(filename)
+    input = open(filename, 'rb')
     field = RBitfield(input)
 
     magic = field.readbits(16)

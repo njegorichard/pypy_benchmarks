@@ -91,7 +91,7 @@ for name in ['names', 'iteration', 'tcp', 'pb', ]:#'web']:#, 'accepts']:
     else:
         iteration_scaling = 1.0
     _register_new_bm_twisted(name, 'twisted_' + name,
-                     globals(), bm_env={'PYTHONPATH': ':'.join(TWISTED)},
+                     globals(), bm_env={'PYTHONPATH': os.pathsep.join(TWISTED)},
                                  iteration_scaling=iteration_scaling)
 
 _register_new_bm('spitfire', 'spitfire', globals(),

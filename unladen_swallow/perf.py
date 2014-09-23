@@ -969,7 +969,7 @@ def BM_Django(*args, **kwargs):
 
 
 def MeasureRietveld(python, options):
-    PYTHONPATH = ":".join([DJANGO_DIR,
+    PYTHONPATH = os.pathsep.join([DJANGO_DIR,
                            # These paths are lifted from
                            # lib/google_appengine.appcfg.py.  Note that we use
                            # our own version of Django instead of Appengine's.
@@ -1406,7 +1406,7 @@ def MeasureSpamBayes(python, options):
         time it took to run the benchmark loop once; mem_usage is a list
         of memory usage samples in kilobytes.
     """
-    pypath = ":".join([Relative("lib/spambayes"), Relative("lib/lockfile")])
+    pypath = os.pathsep.join([Relative("lib/spambayes"), Relative("lib/lockfile")])
     bm_path = Relative("performance/bm_spambayes.py")
     bm_env = {"PYTHONPATH": pypath}
     return MeasureGeneric(python, options, bm_path, bm_env)
