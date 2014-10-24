@@ -21,6 +21,7 @@ def file_write(num, num2):
     f = open("/dev/null", "w")
     for i in range(num):
         f.write(" " * num2)
+    f.flush()
 
 def file_read(num, num2):
     f = open("/dev/full")
