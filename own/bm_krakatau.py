@@ -1,9 +1,9 @@
-import sys, os
+import sys, os, cStringIO
 import time
 import util, optparse
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'krakatau/Krakatau'))
-print sys.path
+this_dir = os.path.dirname(__file__)
+sys.path.insert(0, os.path.join(this_dir, 'krakatau/Krakatau'))
 
 import Krakatau.ssa
 from Krakatau.environment import Environment
@@ -34,7 +34,7 @@ def makeGraph(m):
     return s
 
 def decompileClass():
-    path = ['krakatau/rt.jar']
+    path = [os.path.join(this_dir, 'krakatau/rt.jar')]
     targets = ['javax/swing/plaf/nimbus/ToolBarSouthState']
     e = Environment()
     for part in path:
@@ -49,11 +49,16 @@ def decompileClass():
 
 def main(n):
     l = []
-    for i in range(n):
-        t0 = time.time()
-        decompileClass()
-        time_elapsed = time.time() - t0
-        l.append(time_elapsed)
+    old_stdout = sys.stdout
+    sys.stdout = cStringIO.StringIO()
+    try:
+        for i in range(n):
+            t0 = time.time()
+            decompileClass()
+            time_elapsed = time.time() - t0
+            l.append(time_elapsed)
+    finally:
+        sys.stdout = old_stdout
     return l
 
 if __name__ == "__main__":
