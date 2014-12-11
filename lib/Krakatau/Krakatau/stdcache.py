@@ -6,11 +6,9 @@ class Cache(object):
         self.env = env
         self.filename = filename
 
-        try:
-            with open(self.filename, 'rb') as f:
-                fdata = f.read()
-        except IOError:
-            fdata = ''
+        # XXX for a benchmark, we don't ever want to use a cache, so we simply
+        # don't load data from a cache file (even if it exists)
+        fdata = ''
 
         #Note, we assume \n will never appear in a class name. This should be true for classes in the Java package,
         #but isn't necessarily true for user defined classes (Which we don't cache anyway)
