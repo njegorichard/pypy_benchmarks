@@ -73,7 +73,7 @@ if __name__ == "__main__":
         prune_amount = 0
 
     if output_dir is None:
-        output_dir = os.path.join("/tmp", "icbd_%s" % proj_name)
+        output_dir = os.path.join("/tmp", "icbd_%s_%d" % (proj_name, os.getuid()))
 
     static_dir = os.path.join(output_dir, "static")
 
