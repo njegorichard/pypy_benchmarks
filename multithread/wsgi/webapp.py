@@ -11,8 +11,8 @@ host, port = 'localhost', 80
 url = 'http://{0}:{1}/'.format(host, port)
 settings = {}
 
-def init(benchmark, request_count=100, *args):
-    settings["request_count"] = request_count
+def init(benchmark, request_count="100", *args):
+    settings["request_count"] = int(request_count)
 
     bm_module = type(sys)("bm_module")
     file_name = os.path.join(os.path.dirname(__file__), benchmark + ".py")
@@ -33,10 +33,10 @@ def init(benchmark, request_count=100, *args):
 
     return args
 
-def run(thread_count=2):
+def run(thread_count="2"):
     # test
     threads = []
-    for i in range(thread_count):
+    for i in range(int(thread_count)):
         thread = threading.Thread(target=do_requests, args=(settings['request_count'],))
         thread.start()
         threads.append(thread)
@@ -44,7 +44,6 @@ def run(thread_count=2):
     for thread in threads:
         thread.join()
 
-    remove_wsgi_intercept()
 
 def do_requests(request_count):
     for i in range(request_count):
