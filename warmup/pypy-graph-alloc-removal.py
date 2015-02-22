@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(1, '/home/sik/Work/freeSoftware/pypysrc')
+
 from rpython.translator.interactive import Translation
 from rpython.translator.translator import graphof
 from rpython.translator.backendopt.malloc import LLTypeMallocRemover
