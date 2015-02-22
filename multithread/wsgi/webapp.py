@@ -1,4 +1,4 @@
-
+import os
 import sys
 import threading
 
@@ -14,7 +14,9 @@ settings = {}
 def init(benchmark, request_count=100, *args):
     settings["request_count"] = request_count
 
-    bm_module = __import__(benchmark)
+    bm_module = type(sys)("bm_module")
+    file_name = os.path.join(os.path.dirname(__file__), benchmark + ".py")
+    execfile(file_name, bm_module.__dict__)
 
     if not hasattr(bm_module, 'REQUEST_LIST'):
         print 'request list not defined'
