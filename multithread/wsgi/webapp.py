@@ -54,5 +54,4 @@ def do_requests(request_count):
 
 
 if __name__ == '__main__':
-    init(sys.argv[1])
-    run()
+    run(*init(*sys.argv[1:]))
