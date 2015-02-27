@@ -23,17 +23,29 @@ bar.start()
 # data = pd.DataFrame.from_dict(rawData)
 data = pd.DataFrame.from_csv('foo.csv')
 
-N, K = data.shape
-unpivotedDataDict = {'duration': data.values.ravel('F'),
-                     'runId': np.asarray(data.columns).repeat(N),
-                     'executionId': np.tile(np.asarray(data.index), K)}
+data['gg'] = data.index / 5
 
-data = pd.DataFrame.from_dict(unpivotedDataDict)
-bar.finish()
+xx = data.groupby('gg').mean()
+yy = data.groupby('gg').std()
 
-print data
-sns.tsplot(data, "executionId", "runId", None, "duration")
-sns.plt.show()
+fig, ax = plt.subplots(ncols=1)
+yy = data['run00'].groupby('gg').mean().get_values()
+
+ax.plot(range(100), )
+plt.show()
+
+## reshape the data to use seaborn
+#N, K = data.shape
+#unpivotedDataDict = {'duration': data.values.ravel('F'),
+#                     'runId': np.asarray(data.columns).repeat(N),
+#                     'executionId': np.tile(np.asarray(data.index), K)}
+#
+#data = pd.DataFrame.from_dict(unpivotedDataDict)
+#bar.finish()
+#
+#print data
+#sns.tsplot(data, "executionId", "runId", None, "duration")
+#sns.plt.show()
 
 ## Show the data
 #fig1, ax = plt.subplots(ncols=1, nrows=1)
