@@ -49,6 +49,10 @@ def main(args):
     os.chdir(folder)
     sys.path.insert(0, os.path.abspath('.'))
     test = import_file(os.path.basename(args.file))
+    more_args = args.more
+
+    if hasattr(test, 'init'):
+        more_args = test.init(*more_args)
 
     times = []
     results = []
@@ -61,10 +65,10 @@ def main(args):
 
             test_time = time.time()
             if args.p:
-                results.append(test.run(*args.more))
+                results.append(test.run(*more_args))
             else:
                 with nostdout():
-                    results.append(test.run(*args.more))
+                    results.append(test.run(*more_args))
             times.append(time.time() - test_time)
 
             if not args.q:

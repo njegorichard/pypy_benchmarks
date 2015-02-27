@@ -95,7 +95,7 @@ def run(threads=4, runtime=10, clients=8):
                              stderr=subprocess.PIPE)
     except OSError as e:
         sys.stderr.write("Error trying to execute 'openload'\n%s" % e)
-        os.exit(1)
+        os._exit(1)
 
     returncode = p.wait()
     out, err = p.communicate()
