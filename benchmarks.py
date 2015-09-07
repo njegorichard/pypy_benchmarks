@@ -158,7 +158,8 @@ def BM_translate(base_python, changed_python, options):
     logging.info('Running %s', ' '.join(args))
     environ = os.environ.copy()
     environ['PYTHONPATH'] = relative('lib/pypy')
-    proc = subprocess.Popen(args, stderr=subprocess.PIPE, env=environ)
+    proc = subprocess.Popen(args, stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE, env=environ)
     out, err = proc.communicate()
     retcode = proc.poll()
     if retcode != 0:
