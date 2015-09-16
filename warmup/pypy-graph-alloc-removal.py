@@ -43,4 +43,4 @@ def f(graph):
         remover.remove_mallocs_once(g)
     return time.time() - start
 
-main(graph, 500)
+main(graph, 100)
