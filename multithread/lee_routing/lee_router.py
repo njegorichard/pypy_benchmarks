@@ -62,7 +62,7 @@ TRACK = 8192
 MAX_WEIGHT = 1
 
 # used as loop indices to look at neighbouring cells
-NEIGHBOUR_OFFS = ((1,0), (-1,0), (0,1), (0,-1))
+NEIGHBOUR_OFFS = ((0,1), (1,0), (0,-1), (-1,0))
 
 class Grid(object):
 
@@ -320,7 +320,7 @@ class LeeRouter(object):
     @staticmethod
     def _tlength(x1, y1, x2, y2):
         sq = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1)
-	return math.sqrt(sq);
+	return int(math.sqrt(float(sq)))
 
     def _backtrack_from(self, x_goal, y_goal, x_start, y_start,
                       track_no, tempgrid, grid):

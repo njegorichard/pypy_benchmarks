@@ -39,9 +39,22 @@
 # Translated from Java to Python by Remi Meier
 
 
-import time, Tkinter
+import time
 import sys, math
 import threading
+
+try:
+    from pypystm import atomic, hint_commit_soon
+except ImportError:
+    print "NOT RUNNING STM"
+    atomic = threading.RLock()
+    hint_commit_soon = lambda : 0
+
+try:
+    from pypystm import STMQueue, STMEmpty
+except ImportError:
+    from Queue import Queue as STMQueue, Empty as STMEmpty
+
 
 DEBUG = True
 
@@ -62,7 +75,7 @@ TRACK = 8192
 MAX_WEIGHT = 1
 
 # used as loop indices to look at neighbouring cells
-NEIGHBOUR_OFFS = ((1,0), (-1,0), (0,1), (0,-1))
+NEIGHBOUR_OFFS = ((0,1), (1,0), (0,-1), (-1,0))
 
 class Grid(object):
 
@@ -98,7 +111,7 @@ class Grid(object):
     def occupy(self, lo_x, lo_y, up_x, up_y):
         for x in range(lo_x, up_x + 1):
             for y in range(lo_y, up_y + 1):
-                for c in range(len(self.depth)):
+                for c in range(self.depth):
                     self[x, y, c] = OCC
                 # depth = self._data[x][y]
                 # for c in range(len(depth)):
@@ -129,59 +142,28 @@ class Grid(object):
 
 
 
-class WorkQueue(object):
-    def __init__(self, xx1=0, yy1=0, xx2=0, yy2=0, n=0):
-        self.next = None
-        self.x1 = xx1
-        self.y1 = yy1
-        self.x2 = xx2
-        self.y2 = yy2
-        self.nn = n
 
-    def enqueue(self, x1, y1, x2, y2, n):
-        q = WorkQueue(x1, y1, x2, y2, n)
-        q.next = self.next
-        return q
+class WorkItem:
+    def __init__(self, x1=0, y1=0, x2=0, y2=0, n=0):
+        self.x1, self.y1, self.x2, self.y2, self.n = (
+            x1, y1, x2, y2, n)
+
+    def __cmp__(self, o):
+        selfLen = ((self.x2 - self.x1) * (self.x2 - self.x1)
+                   + (self.y2 - self.y1) * (self.y2 - self.y1))
+        otherLen = ((o.x2 - o.x1) * (o.x2 - o.x1)
+                    + (o.y2 - o.y1) * (o.y2 - o.y1))
+        return cmp(selfLen, otherLen)
+
+
+class WorkQueue:
+    def __init__(self, items):
+        self._stmQ = STMQueue()
+        for i in (items):
+            self._stmQ.put(i)
 
     def dequeue(self):
-        q = self.next
-        self.next = self.next.next
-        return q
-
-    # def length(self):
-    #     curr = self.next
-    #     retval = 0
-    #     while curr is not None:
-    #         retval += 1
-    #         curr = curr.next
-    #     return retval
-
-    def _less(self, other):
-        return (((self.x2 - self.x1) * (self.x2 - self.x1)
-                 + (self.y2 - self.y1) * (self.y2 - self.y1))
-                > ((other.x2 - other.x1) * (other.x2 - other.x1)
-                   + (other.y2 - other.y1) * (other.y2 - other.y1)))
-
-    def _pass(self):
-        done = True
-        ent = self
-        a = ent.next
-        while a.next is not None:
-            b = a.next
-            if a._less(b):
-                ent.next = b
-                a.next = b.next
-                b.next = a
-                done = False
-            ent = a
-            a = b
-            b = b.next
-        return done
-
-    def sort(self):
-        while not self._pass():
-            pass
-
+        return self._stmQ.get(0)
 
 
 
@@ -195,30 +177,27 @@ class LeeThread(threading.Thread):
 
     def run(self):
         while True:
-            with atomic:
-                self.wq = self.lr.get_next_track()
-                #
-                if self.wq is None:
-                    print "finished"
-                    return
-                #
-                #self.tempgrid = Grid(GRID_SIZE, GRID_SIZE, 2)
-                self.lr.lay_next_track(self.wq, self.tempgrid)
+            self.wq = self.lr.get_next_track()
+            if self.wq is None:
+                print "finished"
+                return
+            #
+            #self.tempgrid = Grid(GRID_SIZE, GRID_SIZE, 2)
+            self.lr.lay_next_track(self.wq, self.tempgrid)
 
 
-
-from pypystm import atomic, hint_commit_soon
 
 class LeeRouter(object):
 
     def __init__(self, file):
         self.grid = Grid(GRID_SIZE, GRID_SIZE, 2)
-        self.work = WorkQueue()
+        self._work = []
         self.net_no = 0
         self._parse_data_file(file)
         self.grid.add_weights()
-        self.work.sort()
-        self.queue_lock = threading.Lock()
+        self._compatibility_sort(self._work)
+        self.workQ = WorkQueue(self._work)
+        #
         self.grid_lock = atomic#threading.Lock()
         self.view = Viewer()
 
@@ -242,19 +221,53 @@ class LeeRouter(object):
                     # join connection pts
                     x0, y0, x1, y1 = params
                     self.net_no += 1
-                    self.work.next = self.work.enqueue(x0, y0, x1, y1, self.net_no)
+                    # do what happens in Java (insert instead of append):
+                    self._work.insert(0,WorkItem(x0, y0, x1, y1, self.net_no))
+
+    @staticmethod
+    def _compatibility_sort(work):
+        def _pass():
+            done = True
+            ent = -1
+            a = ent + 1
+            while a + 1 < len(work):
+                b = a + 1
+                if work[a] > work[b]:
+                    # swap a, b
+                    work[a], work[b] = work[b], work[a]
+                    a, b = b, a
+                    assert ent == b - 1
+
+                    done = False
+                ent = a
+                a = b
+                b = b + 1
+            return done
+        #
+        while not _pass():
+            pass
+        #print "|".join(map(lambda x:str((x.x1 - x.x2)**2+(x.y1-x.y2)**2), work[:20]))
+
+    # @staticmethod
+    # def _compatibility_sort(work):
+    #     # just here for result-compatibility with Java code
+    #     for passnum in range(len(work) - 1, 0, -1):
+    #         for i in range(passnum):
+    #             if work[i] > work[i+1]:
+    #                 work[i], work[i+1] = work[i+1], work[i]
+    #     #print "|".join(map(lambda x:str((x.x1 - x.x2)**2+(x.y1-x.y2)**2), work))
 
     def get_next_track(self):
-        with self.queue_lock:
-            if self.work.next is not None:
-                return self.work.dequeue()
-        return None
+        try:
+            return self.workQ.dequeue()
+        except STMEmpty:
+            return None
 
     def lay_next_track(self, wq, tempgrid):
         # start transaction
         with self.grid_lock:
             done = self._connect(wq.x1, wq.y1, wq.x2, wq.y2,
-                                wq.nn, tempgrid, self.grid)
+                                wq.n, tempgrid, self.grid)
         return done # end transaction
 
     def create_thread(self):
@@ -330,7 +343,7 @@ class LeeRouter(object):
     @staticmethod
     def _tlength(x1, y1, x2, y2):
         sq = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1)
-	return math.sqrt(sq);
+	return int(math.sqrt(float(sq)))
 
     def _backtrack_from(self, x_goal, y_goal, x_start, y_start,
                       track_no, tempgrid, grid):
@@ -494,6 +507,7 @@ class Viewer(object):
         self.points.append((x, y, col))
 
     def show(self, width=GRID_SIZE, height=GRID_SIZE):
+        import Tkinter
         master = Tkinter.Tk()
         c = Tkinter.Canvas(master, width=width, height=height,
                            background="black")
