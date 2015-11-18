@@ -58,11 +58,14 @@
 #  * Use optimized STMQueue from pypystm module instead of
 #    hand-written WorkQueue.
 #
-
+#  * Use a deque() where Java used a Vector. deque is much better
+#    to pop an element from the front and append at the end.
+#
 
 import time
 import sys, math
 import threading
+import collections
 
 try:
     from pypystm import atomic, hint_commit_soon
@@ -302,8 +305,8 @@ class LeeRouter(object):
         #
         # g[x_goal][y_goal][0] = EMPTY; // set goal as empty
 	# g[x_goal][y_goal][1] = EMPTY; // set goal as empty
-        front = []
-        tmp_front = []
+        front = collections.deque()#[]
+        tmp_front = collections.deque()#[]
         tempgrid[x, y, 0] = 1
         tempgrid[x, y, 1] = 1
         #
@@ -313,7 +316,7 @@ class LeeRouter(object):
         reached0, reached1 = False, False
         while front:
             while front:
-                fx, fy, fz, fdw = front.pop(0)
+                fx, fy, fz, fdw = front.popleft()
                 #
                 if fdw > 0:
                     tmp_front.append((fx, fy, fz, fdw - 1))
