@@ -38,6 +38,27 @@
 # Author: IW
 # Translated from Java to Python by Remi Meier
 
+#
+# Changes done to improve TM performance:
+#  * The tempgrid was created once, then used repeatedly. For STM,
+#    this is bad because when we modify the tempgrid, we write to
+#    tons of *old* objects that have to be recorded in the write-set.
+#    Also, the write-set goes to the commit log and increases its
+#    size tremendously.
+#
+#  * The Java version used a list of lists of lists for the grid.
+#    To use memory more efficiently, we use one list/array that
+#    is indexed linearly with index calculation.
+#
+#  * The change above (one big list) means that conflict detection
+#    on the shared grid detects conflicts all the time. So we box
+#    each value in a STMValue() object. (-> overhead for single-
+#    threaded version)
+#
+#  * Use optimized STMQueue from pypystm module instead of
+#    hand-written WorkQueue.
+#
+
 
 import time
 import sys, math
@@ -45,14 +66,12 @@ import threading
 
 try:
     from pypystm import atomic, hint_commit_soon
+    from pypystm import queue as STMQueue, Empty as STMEmpty
+    print "RUNNING STM"
 except ImportError:
     print "NOT RUNNING STM"
     atomic = threading.RLock()
     hint_commit_soon = lambda : 0
-
-try:
-    from pypystm import STMQueue, STMEmpty
-except ImportError:
     from Queue import Queue as STMQueue, Empty as STMEmpty
 
 
@@ -83,9 +102,6 @@ class Grid(object):
         self.width = width
         self.height = height
         self.depth = depth
-        # self._data = [[[0 for _ in range(depth)]
-        #              for _ in range(height)]
-        #              for _ in range(width)]
         self._data = None
         self.reset(EMPTY)
 
@@ -93,29 +109,19 @@ class Grid(object):
         return (x * self.height + y) * self.depth + z
 
     def __getitem__(self, args):
-        #x, y, z = args
-        #return self._data[x][y][z]
         return self._data[self._idx(*args)]
 
     def __setitem__(self, args, value):
         self._data[self._idx(*args)] = value
-        # x, y, z = args
-        # self._data[x][y][z] = value
 
     def reset(self, val):
         self._data = [val] * (self.width * self.height * self.depth)
-        # for col in self._data:
-        #     for r in range(len(col)):
-        #         col[r] = [val] * self.depth
 
     def occupy(self, lo_x, lo_y, up_x, up_y):
         for x in range(lo_x, up_x + 1):
             for y in range(lo_y, up_y + 1):
                 for c in range(self.depth):
                     self[x, y, c] = OCC
-                # depth = self._data[x][y]
-                # for c in range(len(depth)):
-                #     depth[c] = OCC
 
 
     def add_weights(self):
@@ -139,8 +145,29 @@ class Grid(object):
                                 if self[x + dx, y + dy, z] == EMPTY:
                                     self[x + dx, y + dy, z] = val - 1
 
+class STMValue(object):
+    def __init__(self, v):
+        self.v = v
 
+class STMGrid(Grid):
+    """Grid that boxes each value to avoid conflicts and that
+    keeps around the grid on reset"""
 
+    def __init__(self, *args):
+        super(STMGrid, self).__init__(*args)
+
+    def reset(self, val):
+        if self._data is None:
+            self._data = [STMValue(val) for _ in range(self.width * self.height * self.depth)]
+        else:
+            for i in range(len(self._data)):
+                self._data[i].v = val
+
+    def __getitem__(self, args):
+        return super(STMGrid, self).__getitem__(args).v
+
+    def __setitem__(self, args, value):
+        super(STMGrid, self).__getitem__(args).v = value
 
 
 class WorkItem:
@@ -159,7 +186,7 @@ class WorkItem:
 class WorkQueue:
     def __init__(self, items):
         self._stmQ = STMQueue()
-        for i in (items):
+        for i in items:
             self._stmQ.put(i)
 
     def dequeue(self):
@@ -190,7 +217,7 @@ class LeeThread(threading.Thread):
 class LeeRouter(object):
 
     def __init__(self, file):
-        self.grid = Grid(GRID_SIZE, GRID_SIZE, 2)
+        self.grid = STMGrid(GRID_SIZE, GRID_SIZE, 2)
         self._work = []
         self.net_no = 0
         self._parse_data_file(file)
@@ -248,14 +275,6 @@ class LeeRouter(object):
             pass
         #print "|".join(map(lambda x:str((x.x1 - x.x2)**2+(x.y1-x.y2)**2), work[:20]))
 
-    # @staticmethod
-    # def _compatibility_sort(work):
-    #     # just here for result-compatibility with Java code
-    #     for passnum in range(len(work) - 1, 0, -1):
-    #         for i in range(passnum):
-    #             if work[i] > work[i+1]:
-    #                 work[i], work[i+1] = work[i+1], work[i]
-    #     #print "|".join(map(lambda x:str((x.x1 - x.x2)**2+(x.y1-x.y2)**2), work))
 
     def get_next_track(self):
         try:
