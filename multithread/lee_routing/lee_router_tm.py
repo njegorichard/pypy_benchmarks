@@ -60,12 +60,13 @@
 #
 #  * Use a deque() where Java used a Vector. deque is much better
 #    to pop an element from the front and append at the end.
+#    This change vastly reduced GC pressure.
 #
 
 import time
 import sys, math
 import threading
-import collections
+from collections import deque as Deque
 
 try:
     from pypystm import atomic, hint_commit_soon
@@ -204,6 +205,8 @@ class LeeThread(threading.Thread):
         self.lr = lr
         self.wq = None
         self.tempgrid = Grid(GRID_SIZE, GRID_SIZE, 2)
+        #self._ = Grid(GRID_SIZE*2, GRID_SIZE*2, 2)
+
 
     def run(self):
         while True:
@@ -229,7 +232,6 @@ class LeeRouter(object):
         self.workQ = WorkQueue(self._work)
         #
         self.grid_lock = atomic#threading.Lock()
-        self.view = Viewer()
 
     def _parse_data_file(self, file_name):
         with open(file_name, 'r') as file:
@@ -305,8 +307,8 @@ class LeeRouter(object):
         #
         # g[x_goal][y_goal][0] = EMPTY; // set goal as empty
 	# g[x_goal][y_goal][1] = EMPTY; // set goal as empty
-        front = collections.deque()#[]
-        tmp_front = collections.deque()#[]
+        front = Deque()
+        tmp_front = Deque()
         tempgrid[x, y, 0] = 1
         tempgrid[x, y, 1] = 1
         #
@@ -357,7 +359,7 @@ class LeeRouter(object):
         if sqval in (VIA, BVIA):
             return False
         #
-        if tempgrid[x, y, zo] <= tempgrid[x, y, z]:
+        if sqval <= tempgrid[x, y, z]:
             return (tempgrid[x-1, y, zo] < sqval or tempgrid[x+1, y, zo] < sqval
                     or tempgrid[x, y-1, zo] < sqval or tempgrid[x, y+1, zo] < sqval)
         return False
@@ -397,7 +399,7 @@ class LeeRouter(object):
               ( -1, 1, 0, 0 ))
         #
         temp_y, temp_x, temp_z = y_goal, x_goal, z_goal
-        while (temp_x != x_start) or (temp_y != y_start): # PDL: until back
+        while (temp_x, temp_y) != (x_start, y_start): # PDL: until back
             # at starting point
             advanced = False
             min_dir = 0
@@ -417,7 +419,7 @@ class LeeRouter(object):
             if (self._path_from_other_side(tempgrid, temp_x, temp_y, temp_z)
                 # not preferred dir for this layer
                 and ((min_dir > 1 and distsofar > 15
-                      and self._tlength(temp_x, temp_y, x_start, y_start) > 15)
+                      and LeeRouter._tlength(temp_x, temp_y, x_start, y_start) > 15)
                      or (not advanced and
                          grid[temp_x, temp_y, temp_z] not in (VIA, BVIA)
                      ))):
@@ -465,19 +467,7 @@ class LeeRouter(object):
             self._backtrack_from(xg, yg, xs, ys, net_no, tempgrid, grid)
         return found
 
-    def disp_grid(self, z):
-        laycol = (MAGENTA, GREEN)[z]
-        for y in reversed(range(GRID_SIZE)): #WTF
-            for x in range(GRID_SIZE):
-                gg = self.grid[x, y, z]
-                if gg == OCC:
-                    self.view.point(x, y, CYAN)
-                elif gg == VIA:
-                    self.view.point(x, y, YELLOW)
-                elif gg == BVIA:
-                    self.view.point(x, y, RED)
-                elif gg == TRACK:
-                    self.view.point(x, y, laycol)
+
 
 
 
@@ -488,28 +478,35 @@ def main(args):
     #
     num_threads = int(args[0])
     filename = args[1]
-    lr = LeeRouter(filename)
     #
-    # setup the benchmark
-    start_time = 0
-    current_time = 0
+    # Setup data:
+    import pypyjit
+    for _ in range(2):
+        lr = LeeRouter(filename)
+        print "Loaded data, starting benchmark"
+        #
+        thread = [lr.create_thread() for _ in range(num_threads)]
+        start_time = time.time()
+        for t in thread:
+            t.start()
+        current_time = time.time()
+        for t in thread:
+            t.join()
+        #
+        elapsed_time = current_time - start_time
+        print "Numthreads:", num_threads
+        print "ElapsedTime:", elapsed_time, "s"
+        report(start_time)
+        #
+        print "turn off jit"
+        pypyjit.set_param("off")
+        pypyjit.set_param("threshold=9999999,trace_eagerness=999999")
     #
-    thread = [lr.create_thread() for _ in range(num_threads)]
-    start_time = time.time()
-    for t in thread:
-        t.start()
-    current_time = time.time()
-    for t in thread:
-        t.join()
-    #
-    elapsed_time = current_time - start_time
-    print "Numthreads:", num_threads
-    print "ElapsedTime:", elapsed_time, "s"
-    report(start_time)
     if DEBUG:
-        lr.disp_grid(0)
-        lr.disp_grid(1)
-        lr.view.show()
+        v = Viewer()
+        v.disp_grid(lr.grid, 0)
+        v.disp_grid(lr.grid, 1)
+        v.show()
 
 
 
@@ -542,6 +539,20 @@ class Viewer(object):
             img.put(col, (x, y))
             #c.create_oval(x-1, y-1, x+1, y+1, fill=col, width=0)
         Tkinter.mainloop()
+
+    def disp_grid(self, grid, z):
+        laycol = (MAGENTA, GREEN)[z]
+        for y in reversed(range(GRID_SIZE)): #WTF
+            for x in range(GRID_SIZE):
+                gg = grid[x, y, z]
+                if gg == OCC:
+                    self.point(x, y, CYAN)
+                elif gg == VIA:
+                    self.point(x, y, YELLOW)
+                elif gg == BVIA:
+                    self.point(x, y, RED)
+                elif gg == TRACK:
+                    self.point(x, y, laycol)
 
 
 
