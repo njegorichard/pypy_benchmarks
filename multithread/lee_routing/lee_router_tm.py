@@ -119,7 +119,16 @@ class Grid(object):
         self._data[self._idx(*args)] = value
 
     def reset(self, val):
-        self._data = [val] * (self.width * self.height * self.depth)
+        # using this line, we create tons of objects and trigger tons of
+        # major GCs, but it's faster. If we use the solution below it,
+        # we write to tons of old objects, which causes a lot of copying
+        # through the commit log (that's slower).
+        #self._data = [val] * (self.width * self.height * self.depth)
+        if self._data is None:
+            self._data = [val] * (self.width * self.height * self.depth)
+        else:
+            for i in range(len(self._data)):
+                self._data[i] = val
 
     def occupy(self, lo_x, lo_y, up_x, up_y):
         for x in range(lo_x, up_x + 1):
@@ -200,15 +209,22 @@ class WorkQueue:
 
 class LeeThread(threading.Thread):
 
-    def __init__(self, lr):
+    def __init__(self, lr, startlock):
         super(LeeThread, self).__init__()
         self.lr = lr
         self.wq = None
         self.tempgrid = Grid(GRID_SIZE, GRID_SIZE, 2)
+        self.startlock = startlock
+        # this line improves GC performance by triggering
+        # less major GCs because the threshold isn't reached
+        # that often...:
         #self._ = Grid(GRID_SIZE*2, GRID_SIZE*2, 2)
 
 
     def run(self):
+        with self.startlock:
+            pass # wait for start
+        print "start"
         while True:
             self.wq = self.lr.get_next_track()
             if self.wq is None:
@@ -293,9 +309,6 @@ class LeeRouter(object):
             done = self._connect(wq.x1, wq.y1, wq.x2, wq.y2,
                                 wq.n, tempgrid, self.grid)
         return done # end transaction
-
-    def create_thread(self):
-        return LeeThread(self)
 
     @staticmethod
     def _expand_from_to(x, y, x_goal, y_goal, num,
@@ -480,27 +493,40 @@ def main(args):
     filename = args[1]
     #
     # Setup data:
-    import pypyjit
-    for _ in range(2):
+    import pypyjit, gc
+    total_time = 0
+    for run in range(4):
         lr = LeeRouter(filename)
         print "Loaded data, starting benchmark"
         #
-        thread = [lr.create_thread() for _ in range(num_threads)]
-        start_time = time.time()
-        for t in thread:
-            t.start()
-        current_time = time.time()
+        # the following line runs finalizers. Otherwise, they
+        # unfortunately run right after letting the threads
+        # run (-> greatly varying execution time). The finalizers
+        # seem to mostly come from Lock() and File() and cause
+        # 0.5s delays where nothing else can run.
+        gc.collect()
+        #
+        startlock = threading.Lock()
+        with startlock:
+            thread = [LeeThread(lr, startlock) for _ in range(num_threads)]
+            for t in thread:
+                t.start()
+            time.sleep(0.3)
+            start_time = time.time()
+            # unlock to let them run
+            print "unlock"
         for t in thread:
             t.join()
         #
-        elapsed_time = current_time - start_time
+        if run != 0:
+            total_time += time.time() - start_time
         print "Numthreads:", num_threads
-        print "ElapsedTime:", elapsed_time, "s"
         report(start_time)
         #
         print "turn off jit"
         pypyjit.set_param("off")
         pypyjit.set_param("threshold=9999999,trace_eagerness=999999")
+    print "total time w/o first iteration:", total_time
     #
     if DEBUG:
         v = Viewer()
