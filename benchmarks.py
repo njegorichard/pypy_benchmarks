@@ -66,6 +66,11 @@ opts = {
     'bm_dulwich_log': {'bm_env': {'PYTHONPATH': relative('lib/dulwich-0.9.1')}},
     'bm_chameleon': {'bm_env': {'PYTHONPATH': relative('lib/chameleon/src')},
                      'iteration_scaling': 3},
+    'nqueens': {'iteration_scaling': .1},
+    'sqlalchemy_declarative': {'bm_env': {'PYTHONPATH': relative('lib/sqlalchemy/lib')},
+                               'iteration_scaling': 3},
+    'sqlalchemy_imperative': {'bm_env': {'PYTHONPATH': relative('lib/sqlalchemy/lib')},
+                              'iteration_scaling': 10},
 }
 
 for name in ['expand', 'integrate', 'sum', 'str']:
@@ -84,7 +89,8 @@ for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'raytrace-simple', 'crypto_pyaes', 'bm_mako', 'bm_chameleon',
              'json_bench', 'pidigits', 'hexiom2', 'eparse', 'deltablue',
              'bm_dulwich_log', 'bm_krakatau', 'bm_mdp', 'pypy_interp',
-             'sqlitesynth', 'pyxl_bench']:
+             'sqlitesynth', 'pyxl_bench', 'nqueens', 'sqlalchemy_declarative',
+             'sqlalchemy_imperative']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
 
 for name in ['names', 'iteration', 'tcp', 'pb', ]:#'web']:#, 'accepts']:
