@@ -60,6 +60,7 @@ TWISTED = [relative('lib/twisted-trunk'), relative('lib/zope.interface-3.5.3/src
 opts = {
     'gcbench' : {'iteration_scaling' : .10},
     'pidigits': {'iteration_scaling' : .10},
+    'pyxl_bench': {'bm_env': {'PYTHONPATH': relative('lib/pyxl')}},
     'eparse'  : {'bm_env': {'PYTHONPATH': relative('lib/monte')}},
     'bm_mako' : {'bm_env': {'PYTHONPATH': relative('lib/mako')}},
     'bm_dulwich_log': {'bm_env': {'PYTHONPATH': relative('lib/dulwich-0.9.1')}},
@@ -83,7 +84,7 @@ for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'raytrace-simple', 'crypto_pyaes', 'bm_mako', 'bm_chameleon',
              'json_bench', 'pidigits', 'hexiom2', 'eparse', 'deltablue',
              'bm_dulwich_log', 'bm_krakatau', 'bm_mdp', 'pypy_interp',
-             'sqlitesynth']:
+             'sqlitesynth', 'pyxl_bench']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
 
 for name in ['names', 'iteration', 'tcp', 'pb', ]:#'web']:#, 'accepts']:
