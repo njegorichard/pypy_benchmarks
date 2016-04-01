@@ -43,7 +43,7 @@ def f(graph):
         remover.remove_mallocs_once(g)
     return time.time() - start
 
-if len(sys.argv) > 2:
+if len(sys.argv) >= 2:
     count = int(sys.argv[1])
 else:
     count = 100
