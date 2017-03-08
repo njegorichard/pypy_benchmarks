@@ -206,7 +206,7 @@ def BM_cpython_doc(base_python, changed_python, options):
         os.mkdir(docdir)
         htmldir = os.path.join(builddir, 'html')
         os.mkdir(htmldir)
-        args = base_python + [build, '-b', 'html', '-d', docdir, maindir, htmldir]
+        args = python + [build, '-b', 'html', '-d', docdir, maindir, htmldir]
         proc = subprocess.Popen(args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         out, err = proc.communicate()
         retcode = proc.poll()
