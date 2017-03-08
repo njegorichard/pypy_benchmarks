@@ -14,6 +14,8 @@ if __name__ == '__main__':
         usage="%prog [options]",
         description="Test the performance of the Go benchmark")
     util.add_standard_options_to(parser)
+    parser.add_option('-b')  # ignored, for cpython_doc
+    parser.add_option('-d')  # ignored, for cpython_doc
     options, args = parser.parse_args()
 
     main = lambda n: [0.0001 for x in range(options.num_runs)]
