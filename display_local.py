@@ -7,11 +7,11 @@ Displays the content of the file resulting from 'run_local.py'.  With
 two arguments, computes statistics and displays the differences.
 
 (Details: each file must result from a '--full-store' execution of
-'runner.py'.  The "changed_times" keys are used and the "base_times"
-keys are discarded.  The option '--base1' and/or '--base2' can be used
-to pick the "base_times" instead in the first/second file.  These
-options are not useful if the files are produced by 'run_local.py'
-because it uses nullpython as the base.)
+'runner.py'.  The "base_times" keys are used and the "changed_times"
+keys are discarded.  The option '--changed1' and/or '--changed2' can be
+used to pick the "changed_times" instead in the first/second file.
+These options are not useful if the files are produced by 'run_local.py'
+because it uses nullpython as the changed interpreter.)
 """
 
 import sys
@@ -136,12 +136,12 @@ def main(argv):
         usage="%prog first-filename [second-filename]",
         description=__doc__)
 
-    parser.add_option("--base1", default=False, action="store_true",
-        help='Pick the "base_times" keys instead of the "changed_times"'
-             ' ones in the first file')
-    parser.add_option("--base2", default=False, action="store_true",
-        help='Pick the "base_times" keys instead of the "changed_times"'
-             ' ones in the second file')
+    parser.add_option("--changed1", default=False, action="store_true",
+        help='Pick the "changed_times" keys instead of the "base_times"'
+             ' keys in the first file')
+    parser.add_option("--changed2", default=False, action="store_true",
+        help='Pick the "changed_times" keys instead of the "base_times"'
+             ' keys in the second file')
     options, args = parser.parse_args(argv)
 
     if len(args) == 0:
@@ -149,9 +149,9 @@ def main(argv):
     elif len(args) > 2:
         parser.error("too many filenames")
 
-    times1 = load_times(args[0], base_times=options.base1)
+    times1 = load_times(args[0], base_times=not options.changed1)
     if len(args) > 1:
-        times2 = load_times(args[1], base_times=options.base2)
+        times2 = load_times(args[1], base_times=not options.changed2)
     else:
         times2 = None
     display(times1, times2)

@@ -28,9 +28,12 @@ pypy_c = sys.argv[1]
 
 localdir = os.path.dirname(sys.argv[0]) or '.'
 
+# note: we use nullpython.py as the "changed" interpreter, not the
+# "baseline" one, because BM_translate() happens to run only with the
+# baseline interpreter and not the changed one.  Messy.
 cmdline = [sys.executable, os.path.join(localdir, 'runner.py'),
-           '--changed', pypy_c,
-           '--baseline', os.path.join(localdir, 'nullpython.py'),
+           '--baseline', pypy_c,
+           '--changed', os.path.join(localdir, 'nullpython.py'),
            '--full-store',
            ] + sys.argv[1:]
 print
