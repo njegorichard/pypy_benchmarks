@@ -113,6 +113,7 @@ def display(times1, times2=None):
                '', '', str(round(g_avg2, 3)), '', '', '',
                perf.TimeDelta(g_avg1, g_avg2)]
         table.append(row)
+        table.append([])
 
     lengths = []
     for row in table:
