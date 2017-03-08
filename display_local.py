@@ -92,6 +92,7 @@ def display(times1, times2=None):
 
     l_avg1 = []
     l_avg2 = []
+    l_diff = []
     for name in all_names:
         row = [name, '']
         table.append(row)
@@ -103,6 +104,7 @@ def display(times1, times2=None):
             row.append(perf.TimeDelta(t_avg1, t_avg2))
             l_avg1.append(t_avg1)
             l_avg2.append(t_avg2)
+            l_diff.append(t_avg1 / t_avg2)
 
     table.append([])
     if len(l_avg1) == len(all_names):
@@ -112,6 +114,18 @@ def display(times1, times2=None):
                '', '', str(round(g_avg1, 3)), '', '', '',
                '', '', str(round(g_avg2, 3)), '', '', '',
                perf.TimeDelta(g_avg1, g_avg2)]
+        table.append(row)
+        if len(l_avg1) > 3:
+            l_avg = zip(l_diff, l_avg1, l_avg2)
+            l_avg.sort()
+            del l_avg[0]
+            del l_avg[-1]
+            g_avg1 = geometric_average([y for x,y,z in l_avg])
+            g_avg2 = geometric_average([z for x,y,z in l_avg])
+            row = ['without 1st/last', '',
+                   '', '', str(round(g_avg1, 3)), '', '', '',
+                   '', '', str(round(g_avg2, 3)), '', '', '',
+                   perf.TimeDelta(g_avg1, g_avg2)]
         table.append(row)
         table.append([])
 
