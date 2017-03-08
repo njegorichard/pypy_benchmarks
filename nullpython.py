@@ -7,16 +7,19 @@ interested in the time of the changed interpreter, but not
 in the difference to a baseline interpreter.
 '''
 from own import util
-import optparse
+import optparse, sys
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(
         usage="%prog [options]",
-        description="Test the performance of the Go benchmark")
+        description="Dummy")
     util.add_standard_options_to(parser)
-    parser.add_option('-b')  # ignored, for cpython_doc
-    parser.add_option('-d')  # ignored, for cpython_doc
-    options, args = parser.parse_args()
+    options, args = parser.parse_args([])
+
+    for i in range(1, len(sys.argv)-1):
+        if sys.argv[i] == '-n':
+            options.num_runs = int(sys.argv[i+1])
+            break
 
     main = lambda n: [0.0001 for x in range(options.num_runs)]
     util.run_benchmark(options, options.num_runs, main)
