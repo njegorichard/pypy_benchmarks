@@ -16,6 +16,7 @@ because it uses nullpython as the base.)
 
 import sys
 import json
+import math
 from unladen_swallow import perf
 
 
@@ -76,22 +77,42 @@ def _report(row, raw1):
     row.append('')
     return raw1
 
+def geometric_average(lst):
+    return math.exp(sum(math.log(t) for t in lst) / len(lst))
+
 def display(times1, times2=None):
     if times2 is None:
         times2 = {}
     all_names = sorted(set(times1) | set(times2))
-    table = [['BENCHMARK', '   ', 'min', ' ', 'avg', ' ', 'stddev', '  ',
+    table = [[],
+             ['BENCHMARK', '   ', 'min', ' ', 'avg', ' ', 'stddev', '  ',
               'min', ' ', 'avg', ' ', 'stddev', '  ',
               'diff']]
     RIGHT_ALIGN = '\x00'
 
+    l_avg1 = []
+    l_avg2 = []
     for name in all_names:
         row = [name, '']
         table.append(row)
         raw1 = _report(row, times1.get(name))
         raw2 = _report(row, times2.get(name))
         if raw1 and raw2:
-            row.append(perf.TimeDelta(perf.avg(raw1), perf.avg(raw2)))
+            t_avg1 = perf.avg(raw1)
+            t_avg2 = perf.avg(raw2)
+            row.append(perf.TimeDelta(t_avg1, t_avg2))
+            l_avg1.append(t_avg1)
+            l_avg2.append(t_avg2)
+
+    table.append([])
+    if len(l_avg1) == len(all_names):
+        g_avg1 = geometric_average(l_avg1)
+        g_avg2 = geometric_average(l_avg2)
+        row = ['GEOM AVG', '',
+               '', '', str(round(g_avg1, 3)), '', '', '',
+               '', '', str(round(g_avg2, 3)), '', '', '',
+               perf.TimeDelta(g_avg1, g_avg2)]
+        table.append(row)
 
     lengths = []
     for row in table:
