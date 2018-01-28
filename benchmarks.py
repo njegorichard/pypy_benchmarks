@@ -66,6 +66,7 @@ opts = {
     'bm_dulwich_log': {'bm_env': {'PYTHONPATH': relative('lib/dulwich-0.9.1')}},
     'bm_chameleon': {'bm_env': {'PYTHONPATH': relative('lib/chameleon/src')},
                      'iteration_scaling': 3},
+    'bm_mdp': {'iteration_scaling': .1},
     'nqueens': {'iteration_scaling': .1},
     'sqlalchemy_declarative': {'bm_env': {'PYTHONPATH': relative('lib/sqlalchemy/lib')},
                                'iteration_scaling': 3},
