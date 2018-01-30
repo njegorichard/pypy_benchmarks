@@ -72,6 +72,7 @@ opts = {
                                'iteration_scaling': 3},
     'sqlalchemy_imperative': {'bm_env': {'PYTHONPATH': relative('lib/sqlalchemy/lib')},
                               'iteration_scaling': 10},
+    'sqlitesynth': {'iteration_scaling': .2},
 }
 
 for name in ['expand', 'integrate', 'sum', 'str']:
