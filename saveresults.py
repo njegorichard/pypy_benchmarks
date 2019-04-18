@@ -27,6 +27,7 @@ import sys
 import time
 import urllib
 import urllib2
+import json
 
 
 def save(project, revision, results, executeable, host, url, testing=False,
@@ -62,7 +63,7 @@ def save(project, revision, results, executeable, host, url, testing=False,
         else:
             print("ERROR: result type unknown " + b[1])
             return 1
-        data = {
+        data = [{
             'commitid': revision,
             'project': project,
             'executable': executeable,
@@ -70,15 +71,15 @@ def save(project, revision, results, executeable, host, url, testing=False,
             'environment': host,
             'result_value': value,
             'branch': branch,
-        }
+        }]
         if value is None:
             print "Ignoring skipped result", data
             continue
         if res_type == "ComparisonResult":
             if changed:
-                data['std_dev'] = results['std_changed']
+                data[0]['std_dev'] = results['std_changed']
             else:
-                data['std_dev'] = results['std_base']
+                data[0]['std_dev'] = results['std_base']
         if testing:
             testparams.append(data)
         else:
@@ -94,19 +95,22 @@ def save(project, revision, results, executeable, host, url, testing=False,
 
 def send(data, url):
     #save results
-    params = urllib.urlencode(data)
+    params = urllib.urlencode({'json': json.dumps(data)})
     f = None
     response = "None"
     info = ("%s: Saving result for %s revision %s, benchmark %s" %
-            (str(datetime.today()), data['executable'],
-             str(data['commitid']), data['benchmark']))
+            (str(datetime.today()), data[0]['executable'],
+             str(data[0]['commitid']), data[0]['benchmark']))
     print(info)
     try:
         retries = [1, 2, 3, 6]
         while True:
             try:
-                f = urllib2.urlopen(url + 'result/add/', params)
+                print('result/add')
+                f = urllib2.urlopen(url + 'result/add/json/', params)
+                print('urlopen')
                 response = f.read()
+                print('response')
                 f.close()
                 break
             except urllib2.URLError:
@@ -163,7 +167,7 @@ if __name__ == '__main__':
     parser.add_option('-u', '--url', dest='url',
                       default="http://speed.pypy.org/",
                       help=('Url of the codespeed instance '
-                            '(default: http://speed.pypy.org)'))
+                            '(default: http://speed.pypy.org/)'))
     parser.format_description = lambda fmt: __doc__
     parser.description = __doc__
     options, args = parser.parse_args()

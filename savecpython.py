@@ -37,21 +37,20 @@ def save(project, revision, results, options, executable, host, testing=False,
         else:
             print("ERROR: result type unknown " + b[1])
             return 1
-        data = {
+        data = [{
             'commitid': revision,
             'project': project,
             'executable': executable,
             'benchmark': bench_name,
             'environment': host,
             'result_value': value,
-            'result_date': current_date,
             'branch': 'default',
-        }
+        }]
         if res_type == "ComparisonResult":
             if base:
-                data['std_dev'] = results['std_base']
+                data[0]['std_dev'] = results['std_base']
             else:
-                data['std_dev'] = results['std_changed']
+                data[0]['std_dev'] = results['std_changed']
         if testing: testparams.append(data)
         else: send(data)
     if testing: return testparams
@@ -59,14 +58,14 @@ def save(project, revision, results, options, executable, host, testing=False,
     
 def send(data):
     #save results
-    params = urllib.urlencode(data)
+    params = urllib.urlencode({'json': json.dumps(data)})
     f = None
     response = "None"
-    info = str(datetime.today()) + ": Saving result for " + data['executable'] + " revision "
-    info += str(data['commitid']) + ", benchmark " + data['benchmark']
+    info = str(datetime.today()) + ": Saving result for " + data[0]['executable'] + " revision "
+    info += str(data[0]['commitid']) + ", benchmark " + data[0]['benchmark']
     print(info)
     try:
-        f = urllib2.urlopen(SPEEDURL + 'result/add/', params)
+        f = urllib2.urlopen(SPEEDURL + 'result/add/json/', params)
         response = f.read()
         f.close()
     except urllib2.URLError, e:
