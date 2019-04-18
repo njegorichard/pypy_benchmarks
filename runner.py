@@ -196,9 +196,9 @@ def main(argv):
         help=("Upload results to speed.pypy.org (unless "
               "--upload-url is given)."))
     upload_group.add_option(
-        "--upload-urls", default="http://speed.pypy.org/",
+        "--upload-urls", default="https://speed.pypy.org/",
         help=("Comma seperated urls of the codespeed instances "
-              "to upload to. (default: http://speed.pypy.org/)"))
+              "to upload to. (default: https://speed.pypy.org/)"))
     upload_group.add_option(
         "--upload-project", default="PyPy",
         help="The project name in codespeed. (default: PyPy)")
@@ -227,9 +227,9 @@ def main(argv):
               "--upload-baseline-url is given)."))
     upload_baseline_group.add_option(
         "--upload-baseline-urls",
-        default="http://speed.pypy.org/",
+        default="https://speed.pypy.org/",
         help=("Comma seperated urls of the codespeed instances "
-              "to upload to. (default: http://speed.pypy.org/)"))
+              "to upload to. (default: https://speed.pypy.org/)"))
     upload_baseline_group.add_option(
         "--upload-baseline-project", default="PyPy",
         help="The project name in codespeed (default: PyPy).")

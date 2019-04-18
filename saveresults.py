@@ -165,9 +165,9 @@ if __name__ == '__main__':
                       help='upload the results as baseline instead of changed')
     parser.add_option('-P', '--project', dest='project', default='PyPy')
     parser.add_option('-u', '--url', dest='url',
-                      default="http://speed.pypy.org/",
+                      default="https://speed.pypy.org/",
                       help=('Url of the codespeed instance '
-                            '(default: http://speed.pypy.org/)'))
+                            '(default: https://speed.pypy.org/)'))
     parser.format_description = lambda fmt: __doc__
     parser.description = __doc__
     options, args = parser.parse_args()
