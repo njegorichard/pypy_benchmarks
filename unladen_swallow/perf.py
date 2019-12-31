@@ -44,7 +44,7 @@ will pass the same arguments to both pythons:
   changed_python -A -B the_benchmark.py
 """
 
-from __future__ import division, with_statement
+from __future__ import division, print_function
 
 __author__ = "jyasskin@google.com (Jeffrey Yasskin)"
 
@@ -62,7 +62,10 @@ import sys
 import tempfile
 import time
 import threading
-import urllib2
+try:
+    import urllib2
+except ImportError:
+    import urllib.request as urllib2
 try:
     import multiprocessing
 except ImportError:
@@ -301,7 +304,7 @@ class MemoryUsageFuture(threading.Thread):
         future = MemoryUsageFuture(some_pid)
         ...
         usage = future.GetMemoryUsage()
-        print max(usage)
+        print(max(usage))
 
     Note that calls to GetMemoryUsage() will block until the process exits.
     """
@@ -459,7 +462,7 @@ def SimpleBenchmark(benchmark_function, base_python, changed_python, options,
                                           *args, **kwargs)
         base_data = benchmark_function(base_python, options,
                                        *args, **kwargs)
-    except subprocess.CalledProcessError, e:
+    except subprocess.CalledProcessError as e:
         return ResultError(e)
 
     return CompareBenchmarkData(base_data, changed_data, options)
@@ -588,9 +591,9 @@ def Relative(path):
 
 
 def LogCall(command):
-    command = map(str, command)
-    info("Running %s", " ".join(command))
-    return command
+    cmd = list(map(str, command))
+    info("Running %s", " ".join(cmd))
+    return cmd
 
 
 try:
@@ -672,12 +675,12 @@ def CompareMultipleRuns(base_times, changed_times, options):
         human consumption.
     """
     if len(base_times) != len(changed_times):
-        print "Base:"
-        print base_times
-        print "Changed:"
-        print changed_times
+        print("Base:")
+        print(base_times)
+        print("Changed:")
+        print(changed_times)
         # XXX <arigo> hacked.  Got this error *once*, don't want to care
-        print "WARNING: length did not match"
+        print("WARNING: length did not match")
         l = min(len(base_times), len(changed_times))
         base_times = base_times[:l]
         changed_times = changed_times[:l]
@@ -770,7 +773,7 @@ def CallAndCaptureOutput(command, env=None, track_memory=False, inherit_env=[]):
         future = MemoryUsageFuture(subproc.pid)
     result, err = subproc.communicate()
     if subproc.returncode != 0:
-        print result
+        print(result)
         raise RuntimeError("Benchmark died (returncode: %d): %s" %
                            (subproc.returncode, err))
     if track_memory:
@@ -887,7 +890,7 @@ def BM_PyBench(base_python, changed_python, options):
             result, err = comparer.communicate()
             if comparer.returncode != 0:
                 return "pybench died: " + err
-    except subprocess.CalledProcessError, e:
+    except subprocess.CalledProcessError as e:
         return str(e)
 
     if options.verbose:
@@ -1091,7 +1094,7 @@ def BM_SlowSpitfire(base_python, changed_python, options):
                                        spitfire_env, extra_args)
         base_data = MeasureSpitfire(base_python, options,
                                     spitfire_env, extra_args)
-    except subprocess.CalledProcessError, e:
+    except subprocess.CalledProcessError as e:
         return str(e)
 
     return CompareBenchmarkData(base_data, changed_data, options)
@@ -1448,7 +1451,7 @@ def BM_richards(*args, **kwargs):
 
 def _FindAllBenchmarks(namespace):
     return dict((name[3:].lower(), func)
-                for (name, func) in sorted(namespace.iteritems())
+                for (name, func) in sorted(namespace.items())
                 if name.startswith("BM_"))
 
 BENCH_FUNCS = _FindAllBenchmarks(globals())
@@ -1548,7 +1551,7 @@ def ParseEnvVars(option, opt_str, value, parser):
 
 def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
     bench_groups = bench_groups.copy()
-    all_benchmarks = bench_funcs.keys()
+    all_benchmarks = list(bench_funcs.keys())
     bench_groups["all"] = all_benchmarks
 
     parser = optparse.OptionParser(
@@ -1580,7 +1583,7 @@ def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
                             " benchmarks except the negative arguments. " +
                             " Otherwise we run only the positive arguments. " +
                             " Valid benchmarks are: " +
-                            ", ".join(bench_groups.keys() + all_benchmarks)))
+                            ", ".join(list(bench_groups.keys()) + all_benchmarks)))
     parser.add_option("--inherit_env", metavar="ENVVARS", type="string", action="callback",
                       callback=ParseEnvVars, default=[],
                       help=("Comma-separated list of environment variable names"
@@ -1618,7 +1621,7 @@ def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
     results = []
     for name in sorted(should_run):
         func = bench_funcs[name]
-        print "Running %s..." % name
+        print("Running %s..." % name)
         # PyPy specific modification: let the func to return a list of results
         # for sub-benchmarks
         bench_result = func(base_cmd_prefix, changed_cmd_prefix, options)
@@ -1631,13 +1634,13 @@ def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
             results.append((name, bench_result))
 
     print
-    print "Report on %s" % " ".join(platform.uname())
+    print("Report on %s" % " ".join(platform.uname()))
     if multiprocessing:
-        print "Total CPU cores:", multiprocessing.cpu_count()
+        print("Total CPU cores:", multiprocessing.cpu_count())
     for name, result in results:
-        print
-        print "###", name, "###"
-        print result.string_representation()
+        print()
+        print("###", name, "###")
+        print(result.string_representation())
     return results
 
 if __name__ == "__main__":
