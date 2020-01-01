@@ -63,7 +63,7 @@ opts = {
     'pyxl_bench': {'bm_env': {'PYTHONPATH': relative('lib/pyxl')}},
     'eparse'  : {'bm_env': {'PYTHONPATH': relative('lib/monte')}},
     'bm_mako' : {'bm_env': {'PYTHONPATH': relative('lib/mako')}},
-    'bm_dulwich_log': {'bm_env': {'PYTHONPATH': relative('lib/dulwich-0.9.1')}},
+    'bm_dulwich_log': {'bm_env': {'PYTHONPATH': relative('lib/dulwich-0.19.13')}},
     'bm_chameleon': {'bm_env': {'PYTHONPATH': relative('lib/chameleon/src')},
                      'iteration_scaling': 3},
     'bm_mdp': {'iteration_scaling': .1},
