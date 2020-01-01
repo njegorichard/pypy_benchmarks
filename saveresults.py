@@ -20,13 +20,17 @@ Example usage:
   $ ./saveresults.py result.json -r '45757:fabe4fc0dc08' -n pypy-c-jit-64 \
     -H tannit
 """
+from __future__ import division, print_function
 
 from datetime import datetime
 import optparse
 import sys
 import time
 import urllib
-import urllib2
+try:
+    import urllib2
+except ImportError:
+    import urllib.request as urllib2
 import json
 
 
@@ -73,7 +77,7 @@ def save(project, revision, results, executeable, host, url, testing=False,
             'branch': branch,
         }]
         if value is None:
-            print "Ignoring skipped result", data
+            print("Ignoring skipped result", data)
             continue
         if res_type == "ComparisonResult":
             if changed:
@@ -117,9 +121,9 @@ def send(data, url):
                 if not retries:
                     raise
                 d = retries.pop(0)
-                print "retrying in %d seconds..." % d
+                print("retrying in %d seconds..." % d)
                 time.sleep(d)
-    except urllib2.URLError, e:
+    except urllib2.URLError as e:
         if hasattr(e, 'reason'):
             response = '\n  We failed to reach a server\n'
             response += '  Reason: ' + str(e.reason)
@@ -127,13 +131,13 @@ def send(data, url):
             response = '\n  The server couldn\'t fulfill the request'
         if hasattr(e, 'readlines'):
             response = "".join([response] + e.readlines())
-        print response
+        print(response)
         with open('error.html', 'w') as error_file:
             error_file.write(response)
         print("Server (%s) response written to error.html" % (url,))
         print('  Error code: %s\n' % (e,))
         return 1
-    print "saved correctly!\n"
+    print("saved correctly!", end='\n\n')
     return 0
 
 
@@ -142,10 +146,10 @@ def main(jsonfile, options):
     with open(jsonfile) as f:
         data = simplejson.load(f)
     results = data['results']
-    print 'uploading results...',
+    print('uploading results...', end='')
     save(options.project, options.revision, results, options.executable,
                 options.host, options.url, changed=options.changed)
-    print 'done'
+    print('done')
 
 
 if __name__ == '__main__':

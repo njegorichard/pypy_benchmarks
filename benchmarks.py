@@ -1,4 +1,7 @@
+from __future__ import division, print_function
+
 import os
+import sys
 import logging
 from unladen_swallow.perf import SimpleBenchmark, MeasureGeneric
 from unladen_swallow.perf import RawResult, SimpleComparisonResult, avg, ResultError
@@ -48,7 +51,7 @@ def _register_new_bm_base_only(name, bm_name, d, **opts):
         try:
             base_data = benchmark_function(base_python, options,
                                            *args, **kwargs)
-        except subprocess.CalledProcessError, e:
+        except subprocess.CalledProcessError as e:
             return ResultError(e)
         return SimpleComparisonResult(avg(base_data[0]), -1, -1)
     BM.func_name = 'BM_' + bm_name
@@ -90,10 +93,15 @@ for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco', 'go', 'pyflate-fast',
              'raytrace-simple', 'crypto_pyaes', 'bm_mako', 'bm_chameleon',
              'json_bench', 'pidigits', 'hexiom2', 'eparse', 'deltablue',
-             'bm_dulwich_log', 'bm_krakatau', 'bm_mdp', 'pypy_interp',
+             'bm_dulwich_log', 'bm_mdp', 'pypy_interp',
              'sqlitesynth', 'pyxl_bench', 'nqueens', 'sqlalchemy_declarative',
              'sqlalchemy_imperative']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
+
+if sys.version_info[0] < 3:
+    # does not support python 3
+    for name in ['bm_krakatau',]:
+        _register_new_bm(name, name, globals(), **opts.get(name, {}))
 
 for name in ['names', 'iteration', 'tcp', 'pb', ]:#'web']:#, 'accepts']:
     if name == 'web':
@@ -173,11 +181,11 @@ def BM_translate(base_python, changed_python, options):
     retcode = proc.poll()
     if retcode != 0:
         if out is not None:
-            print '---------- stdout ----------'
-            print out
+            print('---------- stdout ----------')
+            print(out)
         if err is not None:
-            print '---------- stderr ----------'
-            print err
+            print('---------- stderr ----------')
+            print(err)
         raise Exception("translate.py failed, retcode %r" % (retcode,))
 
     lines = err.splitlines()
@@ -213,8 +221,8 @@ def BM_cpython_doc(base_python, changed_python, options):
         out, err = proc.communicate()
         retcode = proc.poll()
         if retcode != 0:
-            print out
-            print err
+            print(out)
+            print(err)
             raise Exception("sphinx-build.py failed")
         t.append(float(out.splitlines()[-1]))
     return RawResult([t[0]], [t[1]])

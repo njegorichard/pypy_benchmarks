@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """ Usage: runner.py <result filename> <path to pypy-c> <revnumber>
 """
+from __future__ import division, print_function
 
 import json
 import socket
@@ -316,8 +317,8 @@ def main(argv):
             # prevent to upload results from the nullpython dummy
             host = force_host if force_host else socket.gethostname()
             for url in urls:
-                print save(project, revision, results, executable, host, url,
-                           changed=(run == CHANGED), branch=branch)
+                print(save(project, revision, results, executable, host, url,
+                           changed=(run == CHANGED), branch=branch))
 
 
 if __name__ == '__main__':
