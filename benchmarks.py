@@ -94,14 +94,14 @@ for name in ['float', 'nbody_modified', 'meteor-contest', 'fannkuch',
              'spectral-norm', 'chaos', 'telco', 'go', 'pyflate-fast',
              'raytrace-simple', 'crypto_pyaes', 'bm_mako', 'bm_chameleon',
              'json_bench', 'pidigits', 'hexiom2', 'eparse', 'deltablue',
-             'bm_dulwich_log', 'bm_mdp', 'pypy_interp',
+             'bm_dulwich_log', 'bm_mdp', 
              'sqlitesynth', 'pyxl_bench', 'nqueens', 'sqlalchemy_declarative',
              'sqlalchemy_imperative']:
     _register_new_bm(name, name, globals(), **opts.get(name, {}))
 
 if sys.version_info[0] < 3:
     # does not support python 3
-    for name in ['bm_krakatau',]:
+    for name in ['bm_krakatau', 'pypy_interp']:
         _register_new_bm(name, name, globals(), **opts.get(name, {}))
 
 for name in ['names', 'iteration', 'tcp', 'pb', ]:#'web']:#, 'accepts']:

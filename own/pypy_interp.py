@@ -1,4 +1,4 @@
-import sys, os, cStringIO
+import sys, os
 import time
 import util, optparse
 
