@@ -71,6 +71,7 @@ opts = {
                      'iteration_scaling': 3},
     'bm_mdp': {'iteration_scaling': .1},
     'nqueens': {'iteration_scaling': .1},
+    'hexiom2': {'iteration_scaling': .1},
     'sqlalchemy_declarative': {'bm_env': {'PYTHONPATH': relative('lib/sqlalchemy/lib')},
                                'iteration_scaling': 3},
     'sqlalchemy_imperative': {'bm_env': {'PYTHONPATH': relative('lib/sqlalchemy/lib')},
