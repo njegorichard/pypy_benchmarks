@@ -12,8 +12,9 @@ import benchmarks
 from saveresults import save
 from unladen_swallow import perf
 
-BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
-                 # 'rietveld', too hard to adapt to django 0.19.13
+BENCHMARK_SET = ['richards', 'slowspitfire', 'django',
+                 # 'spambayes',  # no python3 version
+                 # 'rietveld',  # too hard to adapt to django 0.19.13
                  'html5lib', 'ai']
 BENCHMARK_SET += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
 
