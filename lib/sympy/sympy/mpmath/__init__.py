@@ -1,4 +1,4 @@
-__version__ = '0.17'
+__version__ = '1.1.0'
 
 from .usertools import monitor, timing
 
@@ -47,6 +47,7 @@ qbarfrom = mp.qbarfrom
 ellipfun = mp.ellipfun
 jtheta = mp.jtheta
 kleinj = mp.kleinj
+eta = mp.eta
 
 qp = mp.qp
 qhyper = mp.qhyper
@@ -69,6 +70,7 @@ isinf = mp.isinf
 isnan = mp.isnan
 isnormal = mp.isnormal
 isint = mp.isint
+isfinite = mp.isfinite
 almosteq = mp.almosteq
 nan = mp.nan
 rand = mp.rand
@@ -102,12 +104,19 @@ quadgl = mp.quadgl
 quadts = mp.quadts
 quadosc = mp.quadosc
 
+invertlaplace = mp.invertlaplace
+invlaptalbot = mp.invlaptalbot
+invlapstehfest = mp.invlapstehfest
+invlapdehoog = mp.invlapdehoog
+
 pslq = mp.pslq
 identify = mp.identify
 findpoly = mp.findpoly
 
 richardson = mp.richardson
 shanks = mp.shanks
+levin = mp.levin
+cohen_alt = mp.cohen_alt
 nsum = mp.nsum
 nprod = mp.nprod
 difference = mp.difference
@@ -142,6 +151,7 @@ mnorm = mp.mnorm
 
 lu_solve = mp.lu_solve
 lu = mp.lu
+qr = mp.qr
 unitvector = mp.unitvector
 inverse = mp.inverse
 residual = mp.residual
@@ -150,6 +160,17 @@ cholesky = mp.cholesky
 cholesky_solve = mp.cholesky_solve
 det = mp.det
 cond = mp.cond
+hessenberg = mp.hessenberg
+schur = mp.schur
+eig = mp.eig
+eig_sort = mp.eig_sort
+eigsy = mp.eigsy
+eighe = mp.eighe
+eigh = mp.eigh
+svd_r = mp.svd_r
+svd_c = mp.svd_c
+svd = mp.svd
+gauss_quadrature = mp.gauss_quadrature
 
 expm = mp.expm
 sqrtm = mp.sqrtm
@@ -378,7 +399,6 @@ kei = mp.kei
 coulombc = mp.coulombc
 coulombf = mp.coulombf
 coulombg = mp.coulombg
-lambertw = mp.lambertw
 barnesg = mp.barnesg
 superfac = mp.superfac
 hyperfac = mp.hyperfac
@@ -394,6 +414,7 @@ primezeta = mp.primezeta
 bell = mp.bell
 polyexp = mp.polyexp
 expm1 = mp.expm1
+log1p = mp.log1p
 powm1 = mp.powm1
 unitroots = mp.unitroots
 cyclotomic = mp.cyclotomic
@@ -402,6 +423,8 @@ secondzeta = mp.secondzeta
 nzeros = mp.nzeros
 backlunds = mp.backlunds
 lerchphi = mp.lerchphi
+stirling1 = mp.stirling1
+stirling2 = mp.stirling2
 
 # be careful when changing this name, don't use test*!
 def runtests():
@@ -415,14 +438,9 @@ def runtests():
     importdir = os.path.abspath(testdir + '/../..')
     tests.testit(importdir, testdir)
 
-def doctests():
-    try:
-        import psyco; psyco.full()
-    except ImportError:
-        pass
+def doctests(filter=[]):
     import sys
     from timeit import default_timer as clock
-    filter = []
     for i, arg in enumerate(sys.argv):
         if '__init__.py' in arg:
             filter = [sn for sn in sys.argv[i+1:] if not sn.startswith("-")]
@@ -442,4 +460,3 @@ def doctests():
 
 if __name__ == '__main__':
     doctests()
-

@@ -5,12 +5,14 @@ from .libmp.backend import xrange
 from .functions.functions import SpecialFunctions
 from .functions.rszeta import RSCache
 from .calculus.quadrature import QuadratureMethods
+from .calculus.inverselaplace import LaplaceTransformInversionMethods
 from .calculus.calculus import CalculusMethods
 from .calculus.optimization import OptimizationMethods
 from .calculus.odes import ODEMethods
 from .matrices.matrices import MatrixMethods
 from .matrices.calculus import MatrixCalculusMethods
 from .matrices.linalg import LinearAlgebraMethods
+from .matrices.eigen import Eigen
 from .identification import IdentificationMethods
 from .visualization import VisualizationMethods
 
@@ -23,10 +25,12 @@ class StandardBaseContext(Context,
     SpecialFunctions,
     RSCache,
     QuadratureMethods,
+    LaplaceTransformInversionMethods,
     CalculusMethods,
     MatrixMethods,
     MatrixCalculusMethods,
     LinearAlgebraMethods,
+    Eigen,
     IdentificationMethods,
     OptimizationMethods,
     ODEMethods,
@@ -41,6 +45,7 @@ class StandardBaseContext(Context,
         SpecialFunctions.__init__(ctx)
         RSCache.__init__(ctx)
         QuadratureMethods.__init__(ctx)
+        LaplaceTransformInversionMethods.__init__(ctx)
         CalculusMethods.__init__(ctx)
         MatrixMethods.__init__(ctx)
 
@@ -342,6 +347,8 @@ class StandardBaseContext(Context,
     moebius = staticmethod(libmp.moebius)
     _ifac = staticmethod(libmp.ifac)
     _eulernum = staticmethod(libmp.eulernum)
+    _stirling1 = staticmethod(libmp.stirling1)
+    _stirling2 = staticmethod(libmp.stirling2)
 
     def sum_accurately(ctx, terms, check_step=1):
         prec = ctx.prec
@@ -434,7 +441,7 @@ class StandardBaseContext(Context,
             >>> f = maxcalls(sin, 10)
             >>> print(sum(f(n) for n in range(10)))
             1.95520948210738
-            >>> f(10)
+            >>> f(10) # doctest: +IGNORE_EXCEPTION_DETAIL
             Traceback (most recent call last):
               ...
             NoConvergence: maxcalls: function evaluated 10 times
@@ -462,7 +469,7 @@ class StandardBaseContext(Context,
             >>> f(2)
             0.909297426825682
             >>> mp.dps = 25
-            >>> f(2)
+            >>> f(2) # doctest: +IGNORE_EXCEPTION_DETAIL
             Traceback (most recent call last):
               ...
             NoConvergence: maxcalls: function evaluated 1 times

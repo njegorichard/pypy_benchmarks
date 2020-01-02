@@ -13,10 +13,11 @@ References:
 
 """
 
-import sympy.mpmath
+import mpmath
 import random
+import pytest
 
-from sympy.mpmath import *
+from mpmath import *
 
 def mpc_ae(a, b, eps=eps):
     res = True
@@ -34,6 +35,7 @@ jdn = ellipfun('dn')
 calculate_nome = lambda k: qfrom(k=k)
 
 def test_ellipfun():
+    mp.dps = 15
     assert ellipfun('ss', 0, 0) == 1
     assert ellipfun('cc', 0, 0) == 1
     assert ellipfun('dd', 0, 0) == 1
@@ -114,14 +116,7 @@ def test_jtheta():
 
     for q in [one, mpf(2)]:
         for n in range(1,5):
-            raised = True
-            try:
-                r = jtheta(n, z, q)
-            except:
-                pass
-            else:
-                raised = False
-            assert(raised)
+            pytest.raises(ValueError, lambda: jtheta(n, z, q))
 
     z = one/10
     q = one/11
@@ -160,7 +155,7 @@ def test_jtheta():
     mp.dps = 15
 
 
-def test_jtheta_issue39():
+def test_jtheta_issue_79():
     # near the circle of covergence |q| = 1 the convergence slows
     # down; for |q| > Q_LIM the theta functions raise ValueError
     mp.dps = 30
@@ -178,14 +173,9 @@ def test_jtheta_issue39():
     mp.dps += 30
     q = mpf(6)/10 - one/10**7 - mpf(8)/10 * j
     mp.dps -= 30
-    try:
-        result = jtheta(3, 1, q)
-    except ValueError:
-        pass
-    else:
-        assert(False)
+    pytest.raises(ValueError, lambda: jtheta(3, 1, q))
 
-    # bug reported in issue39
+    # bug reported in issue 79
     mp.dps = 100
     z = (1+j)/3
     q = mpf(368983957219251)/10**15 + mpf(636363636363636)/10**15 * j
@@ -215,7 +205,7 @@ def test_jtheta_issue39():
         r2 = jtheta(1, z, q)
     assert r1.ae(r2)
     mp.dps = 15
-    # issue 39 about high derivatives
+    # issue 79 about high derivatives
     assert jtheta(3, 4.5, 0.25, 9).ae(1359.04892680683)
     assert jtheta(3, 4.5, 0.25, 50).ae(-6.14832772630905e+33)
     mp.dps = 50
@@ -596,6 +586,23 @@ def test_elliptic_integrals():
     assert elliprd(0,j,-j).ae(1.2708196271909686299 + 2.7811120159520578777j)
     assert elliprd(0,j-1,j).ae(-1.8577235439239060056 - 0.96193450888838559989j)
     assert elliprd(-2-j,-j,-1+j).ae(1.8249027393703805305 - 1.2218475784827035855j)
+    # extra test cases
+    assert elliprg(0,0,0) == 0
+    assert elliprg(0,0,16).ae(2)
+    assert elliprg(0,16,0).ae(2)
+    assert elliprg(16,0,0).ae(2)
+    assert elliprg(1,4,0).ae(1.2110560275684595248036)
+    assert elliprg(1,0,4).ae(1.2110560275684595248036)
+    assert elliprg(0,4,1).ae(1.2110560275684595248036)
+    # should be symmetric -- fixes a bug present in the paper
+    x,y,z = 1,1j,-1+1j
+    assert elliprg(x,y,z).ae(0.64139146875812627545 + 0.58085463774808290907j)
+    assert elliprg(x,z,y).ae(0.64139146875812627545 + 0.58085463774808290907j)
+    assert elliprg(y,x,z).ae(0.64139146875812627545 + 0.58085463774808290907j)
+    assert elliprg(y,z,x).ae(0.64139146875812627545 + 0.58085463774808290907j)
+    assert elliprg(z,x,y).ae(0.64139146875812627545 + 0.58085463774808290907j)
+    assert elliprg(z,y,x).ae(0.64139146875812627545 + 0.58085463774808290907j)
+
     for n in [5, 15, 30, 60, 100]:
         mp.dps = n
         assert elliprf(1,2,0).ae('1.3110287771460599052324197949455597068413774757158115814084108519003952935352071251151477664807145467230678763')
@@ -639,5 +646,5 @@ def test_elliptic_integrals():
         assert elliprg(0, mpf('0.0796'), 4).ae('1.0284758090288040009838871385180217366569777284430590125081211090574701293154645750017813190805144572673802094')
     mp.dps = 15
 
-def test_issue198():
+def test_issue_238():
     assert isnan(qfrom(m=nan))

@@ -33,7 +33,7 @@ using the following relations:
 
 .. math ::
 
-    \tau = -i \frac{K(1-m)}{K(m)}
+    \tau = i \frac{K(1-m)}{K(m)}
 
 .. math ::
 
@@ -41,7 +41,7 @@ using the following relations:
 
 .. math ::
 
-    k = \frac{\vartheta_2^4(q)}{\vartheta_3^4(q)}
+    k = \frac{\vartheta_2^2(q)}{\vartheta_3^2(q)}
 
 In addition, an alternative definition is used for the nome in
 number theory, which we here denote by q-bar:
@@ -63,6 +63,33 @@ between the various parameters (:func:`~mpmath.qfrom`, :func:`~mpmath.mfrom`,
 """
 
 from .functions import defun, defun_wrapped
+
+@defun_wrapped
+def eta(ctx, tau):
+    r"""
+    Returns the Dedekind eta function of tau in the upper half-plane.
+
+        >>> from mpmath import *
+        >>> mp.dps = 25; mp.pretty = True
+        >>> eta(1j); gamma(0.25) / (2*pi**0.75)
+        (0.7682254223260566590025942 + 0.0j)
+        0.7682254223260566590025942
+        >>> tau = sqrt(2) + sqrt(5)*1j
+        >>> eta(-1/tau); sqrt(-1j*tau) * eta(tau)
+        (0.9022859908439376463573294 + 0.07985093673948098408048575j)
+        (0.9022859908439376463573295 + 0.07985093673948098408048575j)
+        >>> eta(tau+1); exp(pi*1j/12) * eta(tau)
+        (0.4493066139717553786223114 + 0.3290014793877986663915939j)
+        (0.4493066139717553786223114 + 0.3290014793877986663915939j)
+        >>> f = lambda z: diff(eta, z) / eta(z)
+        >>> chop(36*diff(f,tau)**2 - 24*diff(f,tau,2)*f(tau) + diff(f,tau,3))
+        0.0
+
+    """
+    if ctx.im(tau) <= 0.0:
+        raise ValueError("eta is only defined in the upper half-plane")
+    q = ctx.expjpi(tau/12)
+    return q * ctx.qp(q**24)
 
 def nome(ctx, m):
     m = ctx.convert(m)
@@ -365,10 +392,10 @@ def kleinj(ctx, tau=None, **kwargs):
 
     **Plots**
 
-    .. literalinclude :: /modules/mpmath/plots/kleinj.py
-    .. image :: /modules/mpmath/plots/kleinj.png
-    .. literalinclude :: /modules/mpmath/plots/kleinj2.py
-    .. image :: /modules/mpmath/plots/kleinj2.png
+    .. literalinclude :: /plots/kleinj.py
+    .. image :: /plots/kleinj.png
+    .. literalinclude :: /plots/kleinj2.py
+    .. image :: /plots/kleinj2.png
 
     **Examples**
 
@@ -896,13 +923,20 @@ def elliprg(ctx, x, y, z):
     x = ctx.convert(x)
     y = ctx.convert(y)
     z = ctx.convert(z)
-    if not z: x, z = z, x
-    if not z: y, z = x, y
-    if not z: return ctx.inf
+    zeros = (not x) + (not y) + (not z)
+    if zeros == 3:
+        return (x+y+z)*0
+    if zeros == 2:
+        if x: return 0.5*ctx.sqrt(x)
+        if y: return 0.5*ctx.sqrt(y)
+        return 0.5*ctx.sqrt(z)
+    if zeros == 1:
+        if not z:
+            x, z = z, x
     def terms():
         T1 = 0.5*z*ctx.elliprf(x,y,z)
         T2 = -0.5*(x-z)*(y-z)*ctx.elliprd(x,y,z)/3
-        T3 = 0.5*ctx.sqrt(x*y/z)
+        T3 = 0.5*ctx.sqrt(x)*ctx.sqrt(y)/ctx.sqrt(z)
         return T1,T2,T3
     return ctx.sum_accurately(terms)
 
@@ -920,7 +954,7 @@ def ellipf(ctx, phi, m):
 
     .. math ::
 
-        F(\phi,m) = \int_0^{\sin z}
+        F(\phi,m) = \int_0^{\sin \phi}
         \frac{dt}{\left(\sqrt{1-t^2}\right)\left(\sqrt{1-mt^2}\right)}.
 
     The function reduces to a complete elliptic integral of the first kind
@@ -932,7 +966,7 @@ def ellipf(ctx, phi, m):
 
     In the defining integral, it is assumed that the principal branch
     of the square root is taken and that the path of integration avoids
-    crossing any branch cuts. Outside `-\pi/2 \le \Re(z) \le \pi/2`,
+    crossing any branch cuts. Outside `-\pi/2 \le \Re(\phi) \le \pi/2`,
     the function extends quasi-periodically as
 
     .. math ::
@@ -941,8 +975,8 @@ def ellipf(ctx, phi, m):
 
     **Plots**
 
-    .. literalinclude :: /modules/mpmath/plots/ellipf.py
-    .. image :: /modules/mpmath/plots/ellipf.png
+    .. literalinclude :: /plots/ellipf.py
+    .. image :: /plots/ellipf.png
 
     **Examples**
 
@@ -1057,12 +1091,12 @@ def ellipe(ctx, *args):
 
     .. math ::
 
-        E(\phi + n \pi, m) = 2 n E(m) + F(\phi,m), n \in \mathbb{Z}.
+        E(\phi + n \pi, m) = 2 n E(m) + E(\phi,m), n \in \mathbb{Z}.
 
     **Plots**
 
-    .. literalinclude :: /modules/mpmath/plots/ellipe.py
-    .. image :: /modules/mpmath/plots/ellipe.png
+    .. literalinclude :: /plots/ellipe.py
+    .. image :: /plots/ellipe.png
 
     **Examples for the complete integral**
 
@@ -1211,7 +1245,7 @@ def ellippi(ctx, *args):
 
     In the defining integral, it is assumed that the principal branch
     of the square root is taken and that the path of integration avoids
-    crossing any branch cuts. Outside `-\pi/2 \le \Re(z) \le \pi/2`,
+    crossing any branch cuts. Outside `-\pi/2 \le \Re(\phi) \le \pi/2`,
     the function extends quasi-periodically as
 
     .. math ::
@@ -1220,8 +1254,8 @@ def ellippi(ctx, *args):
 
     **Plots**
 
-    .. literalinclude :: /modules/mpmath/plots/ellippi.py
-    .. image :: /modules/mpmath/plots/ellippi.png
+    .. literalinclude :: /plots/ellippi.py
+    .. image :: /plots/ellippi.png
 
     **Examples for the complete integral**
 
@@ -1282,6 +1316,19 @@ def ellippi(ctx, *args):
         >>> ellippi(0.5, 5+6j-2*pi, -7-8j)
         (-0.3612856620076747660410167 + 0.5217735339984807829755815j)
 
+    Some degenerate cases::
+
+        >>> ellippi(1,1)
+        +inf
+        >>> ellippi(1,0)
+        +inf
+        >>> ellippi(1,2,0)
+        +inf
+        >>> ellippi(1,2,1)
+        +inf
+        >>> ellippi(1,0,1)
+        0.0
+
     """
     if len(args) == 2:
         n, m = args
@@ -1295,7 +1342,10 @@ def ellippi(ctx, *args):
         if ctx.isnan(n) or ctx.isnan(z) or ctx.isnan(m):
             raise ValueError
         if complete:
-            if m == 0: return ctx.pi/(2*ctx.sqrt(1-n))
+            if m == 0:
+                if n == 1:
+                    return ctx.inf
+                return ctx.pi/(2*ctx.sqrt(1-n))
             if n == 0: return ctx.ellipk(m)
             if ctx.isinf(n) or ctx.isinf(m): return ctx.zero
         else:
@@ -1305,7 +1355,10 @@ def ellippi(ctx, *args):
         if ctx.isinf(n) or ctx.isinf(z) or ctx.isinf(m):
             raise ValueError
     if complete:
-        if m == 1: return -ctx.inf/ctx.sign(n-1)
+        if m == 1:
+            if n == 1:
+                return ctx.inf
+            return -ctx.inf/ctx.sign(n-1)
         away = False
     else:
         x = z.real
@@ -1316,6 +1369,8 @@ def ellippi(ctx, *args):
         d = ctx.nint(x/pi)
         z = z-pi*d
         P = 2*d*ctx.ellippi(n,m)
+        if ctx.isinf(P):
+            return ctx.inf
     else:
         P = 0
     def terms():

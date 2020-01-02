@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from copy import copy
 
 from ..libmp.backend import xrange
@@ -320,11 +322,14 @@ class Bisection:
         while True:
             m = self.ctx.ldexp(a + b, -1)
             fm = f(m)
-            if fm * fb < 0:
+            sign = fm * fb
+            if sign < 0:
                 a = m
-            else:
+            elif sign > 0:
                 b = m
                 fb = fm
+            else:
+                yield m, self.ctx.zero
             l /= 2
             yield (a + b)/2, abs(l)
 
@@ -548,7 +553,7 @@ class ANewton:
                 x0 = phi(x0)
             except ZeroDivisionError:
                 if self.verbose:
-                    'ZeroDivisionError: canceled with x =', x0
+                    print('ZeroDivisionError: canceled with x =', x0)
                 break
             preverror = error
             error = abs(prevx - x0)
@@ -620,7 +625,7 @@ class MDNewton:
 
     [1] http://scipy.org
 
-    [2] http://openopt.org
+    [2] http://openopt.org/Welcome
     """
     maxsteps = 10
 
@@ -681,12 +686,12 @@ class MDNewton:
 # UTILITIES #
 #############
 
-str2solver = {'newton':Newton, 'secant':Secant,'mnewton':MNewton,
+str2solver = {'newton':Newton, 'secant':Secant, 'mnewton':MNewton,
               'halley':Halley, 'muller':Muller, 'bisect':Bisection,
               'illinois':Illinois, 'pegasus':Pegasus, 'anderson':Anderson,
               'ridder':Ridder, 'anewton':ANewton, 'mdnewton':MDNewton}
 
-def findroot(ctx, f, x0, solver=Secant, tol=None, verbose=False, verify=True, **kwargs):
+def findroot(ctx, f, x0, solver='secant', tol=None, verbose=False, verify=True, **kwargs):
     r"""
     Find a solution to `f(x) = 0`, using *x0* as starting point or
     interval for *x*.
@@ -694,7 +699,7 @@ def findroot(ctx, f, x0, solver=Secant, tol=None, verbose=False, verify=True, **
     Multidimensional overdetermined systems are supported.
     You can specify them using a function or a list of functions.
 
-    If the found root does not satisfy `|f(x)^2 < \mathrm{tol}|`,
+    If the found root does not satisfy `|f(x)|^2 \leq \mathrm{tol}`,
     an exception is raised (this can be disabled with *verify=False*).
 
     **Arguments**
@@ -708,7 +713,7 @@ def findroot(ctx, f, x0, solver=Secant, tol=None, verbose=False, verify=True, **
     *verbose*
         print additional information for each iteration if true
     *verify*
-        verify the solution and raise a ValueError if `|f(x) > \mathrm{tol}|`
+        verify the solution and raise a ValueError if `|f(x)|^2 > \mathrm{tol}`
     *solver*
         a generator for *f* and *x0* returning approximative solution and error
     *maxsteps*
@@ -731,7 +736,7 @@ def findroot(ctx, f, x0, solver=Secant, tol=None, verbose=False, verify=True, **
     'secant', 'mnewton', 'halley', 'muller', 'illinois', 'pegasus', 'anderson',
     'ridder', 'anewton', 'bisect'
 
-    See mpmath.optimization for their documentation.
+    See mpmath.calculus.optimization for their documentation.
 
     **Examples**
 
@@ -850,8 +855,8 @@ def findroot(ctx, f, x0, solver=Secant, tol=None, verbose=False, verify=True, **
         error: 10.562244329955107759
         x:     1.0
         error: 7.8598304758094664213e-18
+        ZeroDivisionError: canceled with x = 1.0
         1.0
-
 
     **Complex roots**
 
@@ -884,7 +889,7 @@ def findroot(ctx, f, x0, solver=Secant, tol=None, verbose=False, verify=True, **
         >>> findroot(lambda x: x**2, (-1, .5), solver='anderson')
         Traceback (most recent call last):
           ...
-        ValueError: Could not find root within given tolerance. (1 > 2.1684e-19)
+        ValueError: Could not find root within given tolerance. (1.0 > 2.16840434497100886801e-19)
         Try another starting point or tweak arguments.
 
     """
@@ -961,13 +966,17 @@ def findroot(ctx, f, x0, solver=Secant, tol=None, verbose=False, verify=True, **
             i += 1
             if error < tol * max(1, norm(x)) or i >= maxsteps:
                 break
+        else:
+            if not i:
+                raise ValueError('Could not find root using the given solver.\n'
+                                 'Try another starting point or tweak arguments.')
         if not isinstance(x, (list, tuple, ctx.matrix)):
             xl = [x]
         else:
             xl = x
         if verify and norm(f(*xl))**2 > tol: # TODO: better condition?
             raise ValueError('Could not find root within given tolerance. '
-                             '(%g > %g)\n'
+                             '(%s > %s)\n'
                              'Try another starting point or tweak arguments.'
                              % (norm(f(*xl))**2, tol))
         return x
@@ -1026,11 +1035,11 @@ def steffensen(f):
     Let's try Steffensen's method:
 
     >>> f = lambda x: x**2
-    >>> from mpmath.optimization import steffensen
+    >>> from mpmath.calculus.optimization import steffensen
     >>> F = steffensen(f)
     >>> for x in [0.5, 0.9, 2.0]:
     ...     fx = Fx = x
-    ...     for i in xrange(10):
+    ...     for i in xrange(9):
     ...         try:
     ...             fx = f(fx)
     ...         except OverflowError:
@@ -1039,36 +1048,33 @@ def steffensen(f):
     ...             Fx = F(Fx)
     ...         except ZeroDivisionError:
     ...             pass
-    ...         print '%20g  %20g' % (fx, Fx)
+    ...         print('%20g  %20g' % (fx, Fx))
                     0.25                  -0.5
                   0.0625                   0.1
               0.00390625            -0.0011236
-            1.52588e-005          1.41691e-009
-            2.32831e-010         -2.84465e-027
-            5.42101e-020          2.30189e-080
-            2.93874e-039          -1.2197e-239
-            8.63617e-078                     0
+             1.52588e-05           1.41691e-09
+             2.32831e-10          -2.84465e-27
+             5.42101e-20           2.30189e-80
+             2.93874e-39          -1.2197e-239
+             8.63617e-78                     0
             7.45834e-155                     0
-            5.56268e-309                     0
                     0.81               1.02676
                   0.6561               1.00134
                 0.430467                     1
                 0.185302                     1
                0.0343368                     1
               0.00117902                     1
-            1.39008e-006                     1
-            1.93233e-012                     1
-            3.73392e-024                     1
-            1.39421e-047                     1
+             1.39008e-06                     1
+             1.93233e-12                     1
+             3.73392e-24                     1
                        4                   1.6
                       16                1.2962
                      256               1.10194
                    65536               1.01659
-            4.29497e+009               1.00053
-            1.84467e+019                     1
-            3.40282e+038                     1
-            1.15792e+077                     1
-            1.34078e+154                     1
+             4.29497e+09               1.00053
+             1.84467e+19                     1
+             3.40282e+38                     1
+             1.15792e+77                     1
             1.34078e+154                     1
 
     Unmodified, the iteration converges only towards 0. Modified it converges

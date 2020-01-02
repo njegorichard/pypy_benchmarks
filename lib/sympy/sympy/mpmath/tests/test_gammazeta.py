@@ -1,5 +1,5 @@
-from sympy.mpmath import *
-from sympy.mpmath.libmp import round_up, from_float, mpf_zeta_int
+from mpmath import *
+from mpmath.libmp import round_up, from_float, mpf_zeta_int
 
 def test_zeta_int_bug():
     assert mpf_zeta_int(0, 10) == from_float(-0.5)
@@ -214,6 +214,7 @@ def test_gamma_quotients():
     assert rf(2.5,1) == 2.5
     assert rf(-5,2) == 20
     assert rf(j,j).ae(gamma(2*j)/gamma(j))
+    assert rf('-255.5815971722918','-0.5119253100282322').ae('-0.1952720278805729485')  # issue 421
     assert ff(-2,0) == 1
     assert ff(-2,1) == -2
     assert ff(4,3) == 24
@@ -247,6 +248,7 @@ def test_gamma_quotients():
     assert beta(1+2j,-1-j/2).ae(1.16396542451069943086+0.08511695947832914640j)
     assert beta(-0.5,0.5) == 0
     assert beta(-3,3).ae(-1/3.)
+    assert beta('-255.5815971722918','-0.5119253100282322').ae('18.157330562703710339')  # issue 421
 
 def test_zeta():
     mp.dps = 15
@@ -262,16 +264,26 @@ def test_zeta():
     assert zeta(-4) == 0
     assert zeta(-100) == 0
     assert isnan(zeta(nan))
+    assert zeta(1e-30).ae(-0.5)
+    assert zeta(-1e-30).ae(-0.5)
     # Zeros in the critical strip
     assert zeta(mpc(0.5, 14.1347251417346937904)).ae(0)
     assert zeta(mpc(0.5, 21.0220396387715549926)).ae(0)
     assert zeta(mpc(0.5, 25.0108575801456887632)).ae(0)
+    assert zeta(mpc(1e-30,1e-40)).ae(-0.5)
+    assert zeta(mpc(-1e-30,1e-40)).ae(-0.5)
     mp.dps = 50
     im = '236.5242296658162058024755079556629786895294952121891237'
     assert zeta(mpc(0.5, im)).ae(0, 1e-46)
     mp.dps = 15
     # Complex reflection formula
     assert (zeta(-60+3j) / 10**34).ae(8.6270183987866146+15.337398548226238j)
+    # issue #358
+    assert zeta(0,0.5) == 0
+    assert zeta(0,0) == 0.5
+    assert zeta(0,0.5,1).ae(-0.34657359027997265)
+    # see issue #390
+    assert zeta(-1.5,0.5j).ae(-0.13671400162512768475 + 0.11411333638426559139j)
 
 def test_altzeta():
     mp.dps = 15
@@ -298,6 +310,10 @@ def test_altzeta():
     assert altzeta(s).ae((1-2**(1-s))*zeta(s))
     assert altzeta(-100.5).ae(4.58595480083585913e+108)
     assert altzeta(1.3).ae(0.73821404216623045)
+    assert altzeta(1e-30).ae(0.5)
+    assert altzeta(-1e-30).ae(0.5)
+    assert altzeta(mpc(1e-30,1e-40)).ae(0.5)
+    assert altzeta(mpc(-1e-30,1e-40)).ae(0.5)
 
 def test_zeta_huge():
     mp.dps = 15
@@ -336,6 +352,10 @@ def test_polygamma():
     assert psi0(pi+j).ae(1.04224048313859376 + 0.35853686544063749j)
     assert psi0(-pi-j).ae(1.3404026194821986 - 2.8824392476809402j)
     assert findroot(psi0, 1).ae(1.4616321449683622)
+    assert psi0(1e-10).ae(-10000000000.57722)
+    assert psi0(1e-40).ae(-1.000000000000000e+40)
+    assert psi0(1e-10+1e-10j).ae(-5000000000.577215 + 5000000000.000000j)
+    assert psi0(1e-40+1e-40j).ae(-5.000000000000000e+39 + 5.000000000000000e+39j)
     assert psi0(inf) == inf
     assert psi1(inf) == 0
     assert psi(2,inf) == 0
@@ -490,20 +510,6 @@ def test_gamma_huge_5():
         "7571892628368354580620654233316841")
     mp.dps = 15
 
-def test_gamma_huge_6():
-    return
-    mp.dps = 500
-    x = -10**10 + mpf(10)**(-175)*j
-    mp.dps = 15
-    assert str(gamma(x)) == \
-        "(1.86729378905343e-95657055178 - 4.29960285282433e-95657055002j)"
-    mp.dps = 50
-    assert str(gamma(x)) == (\
-        "(1.8672937890534298925763143275474177736153484820662e-9565705517"
-        "8 - 4.2996028528243336966001185406200082244961757496106e-9565705"
-        "5002j)")
-    mp.dps = 15
-
 def test_gamma_huge_7():
     mp.dps = 100
     a = 3 + j/mpf(10)**1000
@@ -578,6 +584,9 @@ def test_polylog():
     assert polylog(0.5+j/3, 0.5+j/2).ae(0.31739144796565650535 + 0.99255390416556261437j)
     assert polylog(3+4j,1).ae(zeta(3+4j))
     assert polylog(3+4j,-1).ae(-altzeta(3+4j))
+    # issue 390
+    assert polylog(1.5, -48.910886523731889).ae(-6.272992229311817)
+    assert polylog(1.5, 200).ae(-8.349608319033686529 - 8.159694826434266042j)
 
 def test_bell_polyexp():
     mp.dps = 15

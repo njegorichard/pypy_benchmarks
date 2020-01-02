@@ -4,7 +4,10 @@ import os
 import util
 import time
 import optparse
-from StringIO import StringIO
+if sys.version_info[0] < 3:
+    import cStringIO as io
+else:
+    import io
 
 def relative(*args):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), *args)
@@ -24,7 +27,7 @@ from bigtable import test_python_cstringio, test_spitfire_o4, test_spitfire
 def runtest(n, benchmark):
     times = []
     for i in range(n):
-        sys.stdout = StringIO()
+        sys.stdout = io.StringIO()
         bigtable.run([benchmark], 100)
         times.append(float(sys.stdout.getvalue().split(" ")[-2]))
         sys.stdout = sys.__stdout__

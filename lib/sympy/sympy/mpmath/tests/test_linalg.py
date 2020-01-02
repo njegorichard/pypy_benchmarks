@@ -2,7 +2,9 @@
 
 from __future__ import division
 
-from sympy.mpmath import *
+import pytest
+from mpmath import *
+xrange = libmp.backend.xrange
 
 # XXX: these shouldn't be visible(?)
 LU_decomp = mp.LU_decomp
@@ -132,6 +134,23 @@ def test_householder():
            0.00058653999999999998]
     assert norm(matrix(residuals) - matrix(refres), inf) < 1.e-13
 
+    def hilbert_cmplx(n):
+        # Complexified  Hilbert matrix
+        A = hilbert(2*n,n)
+        v = randmatrix(2*n, 2, min=-1, max=1)
+        v = v.apply(lambda x: exp(1J*pi()*x))
+        A = diag(v[:,0])*A*diag(v[:n,1])
+        return A
+
+    residuals_cmplx = []
+    refres_cmplx = []
+    for n in range(2, 10):
+        A = hilbert_cmplx(n)
+        H, p, x, r = householder(A.copy())
+        residuals_cmplx.append(norm(r, 2))
+        refres_cmplx.append(norm(residual(A[:,:n-1], x, A[:,n-1]), 2))
+    assert norm(matrix(residuals_cmplx) - matrix(refres_cmplx), inf) < 1.e-13
+
 def test_factorization():
     A = randmatrix(5)
     P, L, U = lu(A)
@@ -157,15 +176,9 @@ def test_singular():
     A = [[5.6, 1.2], [7./15, .1]]
     B = repr(zeros(2))
     b = [1, 2]
-    def _assert_ZeroDivisionError(statement):
-        try:
-            eval(statement)
-            assert False
-        except (ZeroDivisionError, ValueError):
-            pass
     for i in ['lu_solve(%s, %s)' % (A, b), 'lu_solve(%s, %s)' % (B, b),
               'qr_solve(%s, %s)' % (A, b), 'qr_solve(%s, %s)' % (B, b)]:
-        _assert_ZeroDivisionError(i)
+        pytest.raises((ZeroDivisionError, ValueError), lambda: eval(i))
 
 def test_cholesky():
     assert fp.cholesky(fp.matrix(A9)) == fp.matrix([[2, 0, 0], [1, 2, 0], [-1, -3/2, 3/2]])
@@ -194,6 +207,8 @@ def test_precision():
     assert mnorm(inverse(inverse(A)) - A, 1) < 1.e-45
 
 def test_interval_matrix():
+    mp.dps = 15
+    iv.dps = 15
     a = iv.matrix([['0.1','0.3','1.0'],['7.1','5.5','4.8'],['3.2','4.4','5.6']])
     b = iv.matrix(['4','0.6','0.5'])
     c = iv.lu_solve(a, b)
@@ -221,22 +236,97 @@ def test_improve_solution():
 def test_exp_pade():
     for i in range(3):
         dps = 15
-        extra = 5
+        extra = 15
         mp.dps = dps + extra
         dm = 0
-        while not dm:
-            m = randmatrix(3)
+        N = 3
+        dg = range(1,N+1)
+        a = diag(dg)
+        expa = diag([exp(x) for x in dg])
+        # choose a random matrix not close to be singular
+        # to avoid adding too much extra precision in computing
+        # m**-1 * M * m
+        while abs(dm) < 0.01:
+            m = randmatrix(N)
             dm = det(m)
         m = m/dm
-        a = diag([1,2,3])
         a1 = m**-1 * a * m
+        e2 = m**-1 * expa * m
         mp.dps = dps
         e1 = expm(a1, method='pade')
         mp.dps = dps + extra
-        e2 = m * a1 * m**-1
-        d = e2 - a
+        d = e2 - e1
         #print d
         mp.dps = dps
         assert norm(d, inf).ae(0)
     mp.dps = 15
 
+def test_qr():
+    mp.dps = 15                     # used default value for dps
+    lowlimit = -9                   # lower limit of matrix element value
+    uplimit = 9                     # uppter limit of matrix element value
+    maxm = 4                        # max matrix size
+    flg = False                     # toggle to create real vs complex matrix
+    zero = mpf('0.0')
+
+    for k in xrange(0,10):
+        exdps = 0
+        mode = 'full'
+        flg = bool(k % 2)
+
+        # generate arbitrary matrix size (2 to maxm)
+        num1 = nint(2 + (maxm-2)*rand())
+        num2 = nint(2 + (maxm-2)*rand())
+        m = int(max(num1, num2))
+        n = int(min(num1, num2))
+
+        # create matrix
+        A = mp.matrix(m,n)
+
+        # populate matrix values with arbitrary integers
+        if flg:
+            flg = False
+            dtype = 'complex'
+            for j in xrange(0,n):
+                for i in xrange(0,m):
+                    val = nint(lowlimit + (uplimit-lowlimit)*rand())
+                    val2 = nint(lowlimit + (uplimit-lowlimit)*rand())
+                    A[i,j] = mpc(val, val2)
+        else:
+            flg = True
+            dtype = 'real'
+            for j in xrange(0,n):
+                for i in xrange(0,m):
+                    val = nint(lowlimit + (uplimit-lowlimit)*rand())
+                    A[i,j] = mpf(val)
+
+        # perform A -> QR decomposition
+        Q, R = qr(A, mode, edps = exdps)
+
+        #print('\n\n A = \n', nstr(A, 4))
+        #print('\n Q = \n', nstr(Q, 4))
+        #print('\n R = \n', nstr(R, 4))
+        #print('\n Q*R = \n', nstr(Q*R, 4))
+
+        maxnorm = mpf('1.0E-11')
+        n1 = norm(A - Q * R)
+        #print '\n Norm of A - Q * R = ', n1
+        assert n1 <= maxnorm
+
+        if dtype == 'real':
+            n1 = norm(eye(m) - Q.T * Q)
+            #print ' Norm of I - Q.T * Q = ', n1
+            assert n1 <= maxnorm
+
+            n1 = norm(eye(m) - Q * Q.T)
+            #print ' Norm of I - Q * Q.T = ', n1
+            assert n1 <= maxnorm
+
+        if dtype == 'complex':
+            n1 = norm(eye(m) - Q.T * Q.conjugate())
+            #print ' Norm of I - Q.T * Q.conjugate() = ', n1
+            assert n1 <= maxnorm
+
+            n1 = norm(eye(m) - Q.conjugate() * Q.T)
+            #print ' Norm of I - Q.conjugate() * Q.T = ', n1
+            assert n1 <= maxnorm

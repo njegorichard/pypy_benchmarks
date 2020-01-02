@@ -5,7 +5,7 @@ verified with Mathematica.
 """
 
 import time
-from sympy.mpmath import *
+from mpmath import *
 
 precs = [5, 15, 28, 35, 57, 80, 100, 150, 200]
 
@@ -220,7 +220,7 @@ def last_digits(a):
         else:
             break
     b = float(int(r))/10**(len(r) - m)
-    if b >= 10**m - 0.5:
+    if b >= 10**m - 0.5:  # pragma: no cover
         raise NotImplementedError
     n = int(round(b))
     sn = str(n)
@@ -235,9 +235,9 @@ def test_log_hp():
     res = last_digits(r)
     # Mathematica N[Log[10^15000/3], 2000]
     # ...7443804441768333470331
-    assert res == '44380444176833347033'
+    assert res == '43804441768333470331'
 
-    # see issue 105
+    # see issue 145
     r = log(mpf(3)/2)
     # Mathematica N[Log[3/2], 2000]
     # ...69653749808140753263288
@@ -249,7 +249,7 @@ def test_log_hp():
     res = last_digits(r)
     # Mathematica  N[Log[2], 10000]
     # ...695615913401856601359655561
-    assert res == '91340185660135965556'
+    assert res == '13401856601359655561'
     r = log(mpf(10)**10/3)
     res = last_digits(r)
     # Mathematica N[Log[10^10/3], 10000]
@@ -289,4 +289,3 @@ def test_exp_hp():
     # IntegerPart[N[Exp[1/10] * 10^4000, 4000]]
     # ...92167105162069688129
     assert int(r * 10**mp.dps) % 10**20 == 92167105162069688129
-

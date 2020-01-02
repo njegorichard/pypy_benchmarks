@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import sys
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
@@ -40,12 +40,12 @@ def benchmark_report(acceptCount, duration, name):
     if acceptCount < 10:
         failure = 1
         raise Exception("Run out of TCP connections")
-    print PRINT_TEMPL % {
+    print(PRINT_TEMPL % {
         'stats'    : acceptCount / duration,
         'name'     : name,
         'count'    : acceptCount,
         'duration' : duration
-        }
+        })
 
 def setup_driver(f, argv, reactor):
     from twisted.python.usage import Options

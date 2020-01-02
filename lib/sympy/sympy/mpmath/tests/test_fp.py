@@ -6,7 +6,7 @@ exp 2.25
 log 2.25
 '''
 
-from sympy.mpmath import *
+from mpmath import *
 mp.dps = 20
 for test in cases.splitlines():
     if not test:
@@ -21,7 +21,7 @@ for test in cases.splitlines():
 
 """
 
-from sympy.mpmath import fp
+from mpmath import fp
 
 def ae(x, y, tol=1e-12):
     if x == y:

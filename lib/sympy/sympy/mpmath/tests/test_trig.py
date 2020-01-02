@@ -1,5 +1,5 @@
-from sympy.mpmath import *
-from sympy.mpmath.libmp import *
+from mpmath import *
+from mpmath.libmp import *
 
 def test_trig_misc_hard():
     mp.prec = 53
@@ -134,9 +134,3 @@ def test_trig_near_n_pi():
     assert cos(a[8], rounding=r) == 1
 
     mp.dps = 15
-
-if __name__ == '__main__':
-    for f in globals().keys():
-        if f.startswith("test_"):
-            print(f)
-            globals()[f]()

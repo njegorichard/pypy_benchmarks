@@ -82,11 +82,11 @@ class QuadratureRule(object):
 
         .. math ::
 
-            [a, \infty] : t = \frac{1}{x} + (a-1)
+            \lbrack a, \infty \rbrack : t = \frac{1}{x} + (a-1)
 
-            [-\infty, b] : t = (b+1) - \frac{1}{x}
+            \lbrack -\infty, b \rbrack : t = (b+1) - \frac{1}{x}
 
-            [-\infty, \infty] : t = \frac{x}{\sqrt{1-x^2}}
+            \lbrack -\infty, \infty \rbrack : t = \frac{x}{\sqrt{1-x^2}}
 
         """
         ctx = self.ctx
@@ -383,7 +383,7 @@ class TanhSinh(QuadratureRule):
 
 
 class GaussLegendre(QuadratureRule):
-    """
+    r"""
     This class implements Gauss-Legendre quadrature, which is
     exceptionally efficient for polynomials and polynomial-like (i.e.
     very smooth) integrands.
@@ -407,7 +407,7 @@ class GaussLegendre(QuadratureRule):
     """
 
     def calc_nodes(self, degree, prec, verbose=False):
-        """
+        r"""
         Calculates the abscissas and weights for Gauss-Legendre
         quadrature of degree of given degree (actually `3 \cdot 2^m`).
         """
@@ -420,7 +420,7 @@ class GaussLegendre(QuadratureRule):
         orig = ctx.prec
         ctx.prec = int(prec*1.5)
         if degree == 1:
-            x = ctx.mpf(3)/5
+            x = ctx.sqrt(ctx.mpf(3)/5)
             w = ctx.mpf(5)/9
             nodes = [(-x,w),(ctx.zero,ctx.mpf(8)/9),(x,w)]
             ctx.prec = orig
@@ -438,8 +438,7 @@ class GaussLegendre(QuadratureRule):
                 # recurrence relation
                 for j1 in xrange(1,n+1):
                     t3, t2, t1 = t2, t1, ((2*j1-1)*r*t1 - (j1-1)*t2)/j1
-                t4 = n*(r*t1- t2)/(r**2-1)
-                t5 = r
+                t4 = n*(r*t1-t2)/(r**2-1)
                 a = t1/t4
                 r = r - a
                 if abs(a) < epsilon:
@@ -453,7 +452,7 @@ class GaussLegendre(QuadratureRule):
         ctx.prec = orig
         return nodes
 
-class QuadratureMethods:
+class QuadratureMethods(object):
 
     def __init__(ctx, *args, **kwargs):
         ctx._gauss_legendre = GaussLegendre(ctx)
@@ -572,7 +571,7 @@ class QuadratureMethods:
 
             >>> mp.dps = 1000
             >>> 2*quad(lambda x: sqrt(1-x**2), [-1, 1])  #doctest:+ELLIPSIS
-            3.141592653589793238462643383279502884...216420198
+            3.141592653589793238462643383279502884...216420199
 
         Complex integrals are supported. The following computes
         a residue at `z = 0` by integrating counterclockwise along the

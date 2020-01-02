@@ -264,7 +264,7 @@ def diffs(ctx, f, x, n=None, **options):
         n = int(n)
     if options.get('method', 'step') != 'step':
         k = 0
-        while k < n:
+        while k < n + 1:
             yield ctx.diff(f, x, k, **options)
             k += 1
         return
@@ -453,7 +453,7 @@ def differint(ctx, f, x, n=1, x0=0):
 
     .. math ::
 
-        \,_{x_0}{\mathbb{D}}^n_xf(x) \frac{1}{\Gamma(m-n)} \frac{d^m}{dx^m}
+        \,_{x_0}{\mathbb{D}}^n_xf(x) = \frac{1}{\Gamma(m-n)} \frac{d^m}{dx^m}
         \int_{x_0}^{x}(x-t)^{m-n-1}f(t)dt
 
     where `f` is a given (presumably well-behaved) function,
@@ -617,7 +617,8 @@ def pade(ctx, a, L, M):
     """
     # To determine L+1 coefficients of P and M coefficients of Q
     # L+M+1 coefficients of A must be provided
-    assert(len(a) >= L+M+1)
+    if len(a) < L+M+1:
+        raise ValueError("L+M+1 Coefficients should be provided")
 
     if M == 0:
         if L == 0:

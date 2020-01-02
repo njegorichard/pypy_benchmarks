@@ -4,9 +4,6 @@
 python runtests.py -py
   Use py.test to run tests (more useful for debugging)
 
-python runtests.py -psyco
-  Enable psyco to make tests run about 50% faster
-
 python runtests.py -coverage
   Generate test coverage report. Statistics are written to /tmp
 
@@ -28,11 +25,6 @@ one of the arguments in their name are executed.
 """
 
 import sys, os, traceback
-
-if "-psyco" in sys.argv:
-    sys.argv.remove('-psyco')
-    import psyco
-    psyco.full()
 
 profile = False
 if "-profile" in sys.argv:
@@ -156,4 +148,3 @@ if __name__ == '__main__':
         r.write_results(show_missing=True, summary=True, coverdir="/tmp")
     else:
         testit(importdir, testdir)
-

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from ..libmp.backend import xrange
 from .functions import defun, defun_wrapped, defun_static
 
@@ -157,7 +159,6 @@ def siegelz(ctx, t, **kwargs):
     if d > 4:
         h = lambda x: ctx.siegelz(x, derivative=4)
         return ctx.diff(h, t, n=d-4)
-
 
 
 _zeta_zeros = [
@@ -447,7 +448,10 @@ def polylog_general(ctx, s, z):
     v = ctx.zero
     u = ctx.ln(z)
     if not abs(u) < 5: # theoretically |u| < 2*pi
-        raise NotImplementedError("polylog for arbitrary s and z")
+        j = ctx.j
+        v = 1-s
+        y = ctx.ln(-z)/(2*ctx.pi*j)
+        return ctx.gamma(v)*(j**v*ctx.zeta(v,0.5+y) + j**-v*ctx.zeta(v,0.5-y))/(2*ctx.pi)**v
     t = 1
     k = 0
     while 1:
@@ -481,11 +485,6 @@ def polylog(ctx, s, z):
     if ctx.isint(s):
         return polylog_unitcircle(ctx, int(s), z)
     return polylog_general(ctx, s, z)
-
-    #raise NotImplementedError("polylog for arbitrary s and z")
-    # This could perhaps be used in some cases
-    #from quadrature import quad
-    #return quad(lambda t: t**(s-1)/(exp(t)/z-1),[0,inf])/gamma(s)
 
 @defun_wrapped
 def clsin(ctx, s, z, pi=False):
@@ -538,6 +537,8 @@ def zeta(ctx, s, a=1, derivative=0, method=None, **kwargs):
     prec = ctx.prec
     method = kwargs.get('method')
     verbose = kwargs.get('verbose')
+    if (not s) and (not derivative):
+        return ctx.mpf(0.5) - ctx._convert_param(a)[0]
     if a == 1 and method != 'euler-maclaurin':
         im = abs(ctx._im(s))
         re = abs(ctx._re(s))
@@ -626,6 +627,8 @@ def _hurwitz_reflection(ctx, s, a, d, atype):
         n = int(res)
         if n <= 0:
             return ctx.bernpoly(1-n, a) / (n-1)
+    if not (atype == 'Q' or atype == 'Z'):
+        raise NotImplementedError
     t = 1-s
     # We now require a to be standardized
     v = 0
@@ -640,29 +643,19 @@ def _hurwitz_reflection(ctx, s, a, d, atype):
         b += 1
         shift += 1
     # Rational reflection formula
-    if atype == 'Q' or atype == 'Z':
-        try:
-            p, q = a._mpq_
-        except:
-            assert a == int(a)
-            p = int(a)
-            q = 1
-        p += shift*q
-        assert 1 <= p <= q
-        g = ctx.fsum(ctx.cospi(t/2-2*k*b)*ctx._hurwitz(t,(k,q)) \
-            for k in range(1,q+1))
-        g *= 2*ctx.gamma(t)/(2*ctx.pi*q)**t
-        v += g
-        return v
-    # General reflection formula
-    # Note: clcos/clsin can raise NotImplementedError
-    else:
-        C1, C2 = ctx.cospi_sinpi(0.5*t)
-        # Clausen functions; could maybe use polylog directly
-        if C1: C1 *= ctx.clcos(t, 2*a, pi=True)
-        if C2: C2 *= ctx.clsin(t, 2*a, pi=True)
-        v += 2*ctx.gamma(t)/(2*ctx.pi)**t*(C1+C2)
-        return v
+    try:
+        p, q = a._mpq_
+    except:
+        assert a == int(a)
+        p = int(a)
+        q = 1
+    p += shift*q
+    assert 1 <= p <= q
+    g = ctx.fsum(ctx.cospi(t/2-2*k*b)*ctx._hurwitz(t,(k,q)) \
+        for k in range(1,q+1))
+    g *= 2*ctx.gamma(t)/(2*ctx.pi*q)**t
+    v += g
+    return v
 
 def _hurwitz_em(ctx, s, a, d, prec, verbose):
     # May not be converted at this point
@@ -691,7 +684,7 @@ def _hurwitz_em(ctx, s, a, d, prec, verbose):
         logs = [logM2ad]
         logr = 1/logM2a
         rM2a = 1/M2a
-        M2as = rM2a**s
+        M2as = M2a**(-s)
         if d:
             tailsum = ctx.gammainc(d+1, s1*logM2a) / s1**(d+1)
         else:
@@ -742,10 +735,12 @@ def _zetasum(ctx, s, a, n, derivatives=[0], reflect=False):
     or a range 0,1,...r). If reflect=False, the ydks are not computed.
     """
     #print "zetasum", s, a, n
-    try:
-        return ctx._zetasum_fast(s, a, n, derivatives, reflect)
-    except NotImplementedError:
-        pass
+    # don't use the fixed-point code if there are large exponentials
+    if abs(ctx.re(s)) < 0.5 * ctx.prec:
+        try:
+            return ctx._zetasum_fast(s, a, n, derivatives, reflect)
+        except NotImplementedError:
+            pass
     negs = ctx.fneg(s, exact=True)
     have_derivatives = derivatives != [0]
     have_one_derivative = len(derivatives) == 1
@@ -943,8 +938,8 @@ def secondzeta(ctx, s, a = 0.015, **kwargs):
         0.023104993115419
         >>> xi = lambda s: 0.5*s*(s-1)*pi**(-0.5*s)*gamma(0.5*s)*zeta(s)
         >>> Xi = lambda t: xi(0.5+t*j)
-        >>> -0.5*diff(Xi,0,n=2)/Xi(0)
-        (0.023104993115419 + 0.0j)
+        >>> chop(-0.5*diff(Xi,0,n=2)/Xi(0))
+        0.023104993115419
 
     We may ask for an approximate error value::
 
@@ -1099,9 +1094,9 @@ def lerchphi(ctx, z, s, a):
         >>> lerchphi(-2,2,-2.5)
         -12.28676272353094275265944
         >>> lerchphi(10,10,10)
-        (-4.462130727102185701817349e-11 + 1.575172198981096218823481e-12j)
+        (-4.462130727102185701817349e-11 - 1.575172198981096218823481e-12j)
         >>> lerchphi(10,10,-10.5)
-        (112658784011940.5605789002 + 498113185.5756221777743631j)
+        (112658784011940.5605789002 - 498113185.5756221777743631j)
 
     Some degenerate cases::
 
@@ -1110,6 +1105,21 @@ def lerchphi(ctx, z, s, a):
         >>> lerchphi(0,1,-2)
         -0.5
 
+    Reduction to simpler functions::
+
+        >>> lerchphi(1, 4.25+1j, 1)
+        (1.044674457556746668033975 - 0.04674508654012658932271226j)
+        >>> zeta(4.25+1j)
+        (1.044674457556746668033975 - 0.04674508654012658932271226j)
+        >>> lerchphi(1 - 0.5**10, 4.25+1j, 1)
+        (1.044629338021507546737197 - 0.04667768813963388181708101j)
+        >>> lerchphi(3, 4, 1)
+        (1.249503297023366545192592 - 0.2314252413375664776474462j)
+        >>> polylog(4, 3) / 3
+        (1.249503297023366545192592 - 0.2314252413375664776474462j)
+        >>> lerchphi(3, 4, 1 - 0.5**10)
+        (1.253978063946663945672674 - 0.2316736622836535468765376j)
+
     **References**
 
     1. [DLMF]_ section 25.14
@@ -1117,13 +1127,11 @@ def lerchphi(ctx, z, s, a):
     """
     if z == 0:
         return a ** (-s)
-    """
     # Faster, but these cases are useful for testing right now
     if z == 1:
         return ctx.zeta(s, a)
     if a == 1:
-        return z * ctx.polylog(s, z)
-    """
+        return ctx.polylog(s, z) / z
     if ctx.re(a) < 1:
         if ctx.isnpint(a):
             raise ValueError("Lerch transcendent complex infinity")

@@ -1,5 +1,5 @@
-from sympy.mpmath.libmp import *
-from sympy.mpmath import *
+from mpmath.libmp import *
+from mpmath import *
 import random
 import time
 import math
@@ -153,7 +153,7 @@ def test_exp():
     assert exp(ln2 * 10).ae(1024)
     assert exp(2+2j).ae(cmath.exp(2+2j))
 
-def test_issue_33():
+def test_issue_73():
     mp.dps = 512
     a = exp(-1)
     b = exp(1)
@@ -393,6 +393,8 @@ def test_complex_functions():
             assert tanh(mpc(z)).ae(cmath.tanh(z))
 
 def test_complex_inverse_functions():
+    mp.dps = 15
+    iv.dps = 15
     for (z1, z2) in random_complexes(30):
         # apparently cmath uses a different branch, so we
         # can't use it for comparison
@@ -436,6 +438,8 @@ def test_reciprocal_functions():
     assert asech(0.5).ae(1.31695789692481671)
     assert acsch(3).ae(0.327450150237258443)
     assert acoth(3).ae(0.346573590279972655)
+    assert acot(0).ae(1.5707963267948966192)
+    assert acoth(0).ae(1.5707963267948966192j)
 
 def test_ldexp():
     mp.dps = 15
@@ -619,7 +623,7 @@ def test_root():
     assert root(16,4,4) == 2
     assert root(-125,3,1) == -5
 
-def test_issue_96():
+def test_issue_136():
     for dps in [20, 80]:
         mp.dps = dps
         r = nthroot(mpf('-1e-20'), 4)
@@ -853,9 +857,16 @@ def test_expm1():
     assert expm1(0) == 0
     assert expm1(3).ae(exp(3)-1)
     assert expm1(inf) == inf
-    assert expm1(1e-10)*1e10
     assert expm1(1e-50).ae(1e-50)
     assert (expm1(1e-10)*1e10).ae(1.00000000005)
+
+def test_log1p():
+    mp.dps = 15
+    assert log1p(0) == 0
+    assert log1p(3).ae(log(1+3))
+    assert log1p(inf) == inf
+    assert log1p(1e-50).ae(1e-50)
+    assert (log1p(1e-10)*1e10).ae(0.99999999995)
 
 def test_powm1():
     mp.dps = 15

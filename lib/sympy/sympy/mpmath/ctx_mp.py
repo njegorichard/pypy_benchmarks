@@ -8,7 +8,7 @@ import re
 
 from .ctx_base import StandardBaseContext
 
-from .libmp.backend import basestring
+from .libmp.backend import basestring, BACKEND
 
 from . import libmp
 
@@ -43,9 +43,13 @@ new = object.__new__
 get_complex = re.compile(r'^\(?(?P<re>[\+\-]?\d*\.?\d*(e[\+\-]?\d+)?)??'
                          r'(?P<im>[\+\-]?\d*\.?\d*(e[\+\-]?\d+)?j)?\)?$')
 
-
-from .ctx_mp_python import PythonMPContext as BaseMPContext
-from . import ctx_mp_python as _mpf_module
+if BACKEND == 'sage':
+    from sage.libs.mpmath.ext_main import Context as BaseMPContext
+    # pickle hack
+    import sage.libs.mpmath.ext_main as _mpf_module
+else:
+    from .ctx_mp_python import PythonMPContext as BaseMPContext
+    from . import ctx_mp_python as _mpf_module
 
 from .ctx_mp_python import _mpf, _mpc, mpnumeric
 
@@ -151,8 +155,6 @@ class MPContext(BaseMPContext, StandardBaseContext):
         ctx.rgamma = ctx._wrap_libmp_function(libmp.mpf_rgamma, libmp.mpc_rgamma)
         ctx.loggamma = ctx._wrap_libmp_function(libmp.mpf_loggamma, libmp.mpc_loggamma)
         ctx.fac = ctx.factorial = ctx._wrap_libmp_function(libmp.mpf_factorial, libmp.mpc_factorial)
-        ctx.gamma_old = ctx._wrap_libmp_function(libmp.mpf_gamma_old, libmp.mpc_gamma_old)
-        ctx.fac_old = ctx.factorial_old = ctx._wrap_libmp_function(libmp.mpf_factorial_old, libmp.mpc_factorial_old)
 
         ctx.digamma = ctx._wrap_libmp_function(libmp.mpf_psi0, libmp.mpc_psi0)
         ctx.harmonic = ctx._wrap_libmp_function(libmp.mpf_harmonic, libmp.mpc_harmonic)
@@ -311,6 +313,60 @@ class MPContext(BaseMPContext, StandardBaseContext):
             return True
         return False
 
+    def isnan(ctx, x):
+        """
+        Return *True* if *x* is a NaN (not-a-number), or for a complex
+        number, whether either the real or complex part is NaN;
+        otherwise return *False*::
+
+            >>> from mpmath import *
+            >>> isnan(3.14)
+            False
+            >>> isnan(nan)
+            True
+            >>> isnan(mpc(3.14,2.72))
+            False
+            >>> isnan(mpc(3.14,nan))
+            True
+
+        """
+        if hasattr(x, "_mpf_"):
+            return x._mpf_ == fnan
+        if hasattr(x, "_mpc_"):
+            return fnan in x._mpc_
+        if isinstance(x, int_types) or isinstance(x, rational.mpq):
+            return False
+        x = ctx.convert(x)
+        if hasattr(x, '_mpf_') or hasattr(x, '_mpc_'):
+            return ctx.isnan(x)
+        raise TypeError("isnan() needs a number as input")
+
+    def isfinite(ctx, x):
+        """
+        Return *True* if *x* is a finite number, i.e. neither
+        an infinity or a NaN.
+
+            >>> from mpmath import *
+            >>> isfinite(inf)
+            False
+            >>> isfinite(-inf)
+            False
+            >>> isfinite(3)
+            True
+            >>> isfinite(nan)
+            False
+            >>> isfinite(3+4j)
+            True
+            >>> isfinite(mpc(3,inf))
+            False
+            >>> isfinite(mpc(nan,3))
+            False
+
+        """
+        if ctx.isinf(x) or ctx.isnan(x):
+            return False
+        return True
+
     def isnpint(ctx, x):
         """
         Determine if *x* is a nonpositive integer.
@@ -397,7 +453,7 @@ class MPContext(BaseMPContext, StandardBaseContext):
         return PrecisionManager(ctx, None, lambda d: n, normalize_output)
 
     def autoprec(ctx, f, maxprec=None, catch=(), verbose=False):
-        """
+        r"""
         Return a wrapped copy of *f* that repeatedly evaluates *f*
         with increasing precision until the result converges to the
         full precision used at the point of the call.
@@ -429,7 +485,7 @@ class MPContext(BaseMPContext, StandardBaseContext):
         The following fails to converge because `\sin(\pi) = 0` whereas all
         finite-precision approximations of `\pi` give nonzero values::
 
-            >>> autoprec(sin)(pi)
+            >>> autoprec(sin)(pi) # doctest: +IGNORE_EXCEPTION_DETAIL
             Traceback (most recent call last):
               ...
             NoConvergence: autoprec: prec increased to 2910 without convergence
@@ -517,11 +573,31 @@ class MPContext(BaseMPContext, StandardBaseContext):
         The companion function :func:`~mpmath.nprint` prints the result
         instead of returning it.
 
+        The keyword arguments *strip_zeros*, *min_fixed*, *max_fixed*
+        and *show_zero_exponent* are forwarded to :func:`~mpmath.libmp.to_str`.
+
+        The number will be printed in fixed-point format if the position
+        of the leading digit is strictly between min_fixed
+        (default = min(-dps/3,-5)) and max_fixed (default = dps).
+
+        To force fixed-point format always, set min_fixed = -inf,
+        max_fixed = +inf. To force floating-point format, set
+        min_fixed >= max_fixed.
+
             >>> from mpmath import *
             >>> nstr([+pi, ldexp(1,-500)])
             '[3.14159, 3.05494e-151]'
             >>> nprint([+pi, ldexp(1,-500)])
             [3.14159, 3.05494e-151]
+            >>> nstr(mpf("5e-10"), 5)
+            '5.0e-10'
+            >>> nstr(mpf("5e-10"), 5, strip_zeros=False)
+            '5.0000e-10'
+            >>> nstr(mpf("5e-10"), 5, strip_zeros=False, min_fixed=-11)
+            '0.00000000050000'
+            >>> nstr(mpf(0), 5, show_zero_exponent=True)
+            '0.0e+0'
+
         """
         if isinstance(x, list):
             return "[%s]" % (", ".join(ctx.nstr(c, n, **kwargs) for c in x))

@@ -1,4 +1,4 @@
-from sympy.mpmath import *
+from mpmath import *
 
 def test_interval_identity():
     iv.dps = 15
@@ -23,6 +23,14 @@ def test_interval_identity():
     assert mpi(2, inf) in w
     assert mpi(0, 2) in mpi(0, 10)
     assert not (3 in mpi(-inf, 0))
+
+def test_interval_hash():
+    assert hash(mpi(3)) == hash(3)
+    assert hash(mpi(3.25)) == hash(3.25)
+    assert hash(mpi(3,4)) == hash(mpi(3,4))
+    assert hash(iv.mpc(3)) == hash(3)
+    assert hash(iv.mpc(3,4)) == hash(3+4j)
+    assert hash(iv.mpc((1,3),(2,4))) == hash(iv.mpc((1,3),(2,4)))
 
 def test_interval_arithmetic():
     iv.dps = 15
@@ -303,6 +311,8 @@ def test_interval_complex():
     assert iv.sin(2+3j).ae(mp.sin(2+3j))
 
 def test_interval_complex_arg():
+    mp.dps = 15
+    iv.dps = 15
     assert iv.arg(3) == 0
     assert iv.arg(0) == 0
     assert iv.arg([0,3]) == 0
@@ -377,6 +387,7 @@ def test_interval_nstr():
     assert iv.nstr(mpi('1e123', '1e129'), n, mode='diff') == '[1.0e+123, 1.0e+129]'
     exp = iv.exp
     assert iv.nstr(iv.exp(mpi('5000.1')), n, mode='diff') == '3.2797365856787867069110487[0926, 1191]e+2171'
+    iv.dps = 15
 
 def test_mpi_from_str():
     iv.dps = 15
@@ -428,3 +439,15 @@ def test_interval_gamma():
         assert z.b.ae(max_real)
         assert z.c.ae(min_imag)
         assert z.d.ae(max_imag)
+
+def test_interval_conversions():
+    mp.dps = 15
+    iv.dps = 15
+    for a, b in ((-0.0, 0), (0.0, 0.5), (1.0, 1), \
+                 ('-inf', 20.5), ('-inf', float(sqrt(2)))):
+        r = mpi(a, b)
+        assert int(r.b) == int(b)
+        assert float(r.a) == float(a)
+        assert float(r.b) == float(b)
+        assert complex(r.a) == complex(a)
+        assert complex(r.b) == complex(b)

@@ -28,7 +28,7 @@ def _main():
         assert math.cos(x) == cosx1 == cosx2
 
     conn.create_aggregate("avglength", 1, AvgLength)
-    avglen, = conn.execute("select avglength(z) from cos;").next()
+    avglen, = next(conn.execute("select avglength(z) from cos;"))
     conn.execute("delete from cos;")
     conn.close()
 

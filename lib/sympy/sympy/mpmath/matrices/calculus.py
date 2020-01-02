@@ -2,7 +2,7 @@ from ..libmp.backend import xrange
 
 # TODO: should use diagonalization-based algorithms
 
-class MatrixCalculusMethods:
+class MatrixCalculusMethods(object):
 
     def _exp_pade(ctx, a):
         """
@@ -111,9 +111,16 @@ class MatrixCalculusMethods:
             42.0927851137247
 
         """
-        A = ctx.matrix(A)
         if method == 'pade':
-            return ctx._exp_pade(A)
+            prec = ctx.prec
+            try:
+                A = ctx.matrix(A)
+                ctx.prec += 2*A.rows
+                res = ctx._exp_pade(A)
+            finally:
+                ctx.prec = prec
+            return res
+        A = ctx.matrix(A)
         prec = ctx.prec
         j = int(max(1, ctx.mag(ctx.mnorm(A,'inf'))))
         j += int(0.5*prec**0.5)

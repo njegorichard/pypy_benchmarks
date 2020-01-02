@@ -22,10 +22,9 @@ gmpy = None
 sage = None
 sage_utils = None
 
-try:
-    xrange
+if sys.version_info[0] < 3:
     python3 = False
-except NameError:
+else:
     python3 = True
 
 BACKEND = 'python'
@@ -34,12 +33,25 @@ if not python3:
     MPZ = long
     xrange = xrange
     basestring = basestring
-    from .exec_py2 import exec_
+
+    def exec_(_code_, _globs_=None, _locs_=None):
+        """Execute code in a namespace."""
+        if _globs_ is None:
+            frame = sys._getframe(1)
+            _globs_ = frame.f_globals
+            if _locs_ is None:
+                _locs_ = frame.f_locals
+            del frame
+        elif _locs_ is None:
+            _locs_ = _globs_
+        exec("""exec _code_ in _globs_, _locs_""")
 else:
     MPZ = int
     xrange = range
     basestring = str
-    from .exec_py3 import exec_
+
+    import builtins
+    exec_ = getattr(builtins, "exec")
 
 # Define constants for calculating hash on Python 3.2.
 if sys.version >= "3.2":
@@ -67,7 +79,8 @@ if 'MPMATH_NOGMPY' not in os.environ:
     except:
         pass
 
-if 'MPMATH_NOSAGE' not in os.environ:
+if ('MPMATH_NOSAGE' not in os.environ and 'SAGE_ROOT' in os.environ or
+        'MPMATH_SAGE' in os.environ):
     try:
         import sage.all
         import sage.libs.mpmath.utils as _sage_utils

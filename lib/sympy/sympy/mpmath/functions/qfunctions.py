@@ -19,7 +19,7 @@ def qp(ctx, a, q=None, n=None, **kwargs):
             \sum_{k=-\infty}^{\infty} (-1)^k q^{(3k^2-k)/2}
 
     is also known as the Euler function, or (up to a factor `q^{-1/24}`)
-    the Dirichlet eta function.
+    the Dedekind eta function.
 
     **Examples**
 
@@ -79,7 +79,8 @@ def qp(ctx, a, q=None, n=None, **kwargs):
         n = ctx.inf
     else:
         n = ctx.convert(n)
-    assert n >= 0
+    if n < 0:
+        raise ValueError("n cannot be negative")
     if q is None:
         q = a
     else:
@@ -122,7 +123,7 @@ def qp(ctx, a, q=None, n=None, **kwargs):
             r *= q
             k += 1
             if k >= n:
-                raise StopIteration
+                return
             if k > maxterms:
                 raise ctx.NoConvergence
     return ctx.mul_accurately(factors)

@@ -1,6 +1,6 @@
 import random
-from sympy.mpmath import *
-from sympy.mpmath.libmp import *
+from mpmath import *
+from mpmath.libmp import *
 
 
 def test_basic_string():
@@ -30,6 +30,10 @@ def test_basic_string():
     assert str(mpf(-1.23402834e-15)) == '-1.23402834e-15'
     assert str(mpf(-1.2344e-15)) == '-1.2344e-15'
     assert repr(mpf(-1.2344e-15)) == "mpf('-1.2343999999999999e-15')"
+    assert str(mpf("2163048125L")) == '2163048125.0'
+    assert str(mpf("-2163048125l")) == '-2163048125.0'
+    assert str(mpf("-2163048125L/1088391168")) == '-1.98738118113799'
+    assert str(mpf("2163048125/1088391168l")) == '1.98738118113799'
 
 def test_pretty():
     mp.pretty = True
@@ -190,3 +194,30 @@ def test_mpmathify():
     assert mpmathify('(1.2e-10 - 3.4e5j)') == mpc('1.2e-10', '-3.4e5')
     assert mpmathify('1j') == mpc(1j)
 
+def test_compatibility():
+    try:
+        import numpy as np
+        from fractions import Fraction
+        from decimal import Decimal
+        import decimal
+    except ImportError:
+        return
+    # numpy types
+    for nptype in np.core.numerictypes.typeDict.values():
+        if issubclass(nptype, np.complexfloating):
+            x = nptype(complex(0.5, -0.5))
+        elif issubclass(nptype, np.floating):
+            x = nptype(0.5)
+        elif issubclass(nptype, np.integer):
+            x = nptype(2)
+        # Handle the weird types
+        try: diff = np.abs(type(np.sqrt(x))(sqrt(x)) - np.sqrt(x))
+        except: continue
+        assert diff < 2.0**-53
+    #Fraction and Decimal
+    oldprec = mp.prec
+    mp.prec = 1000
+    decimal.getcontext().prec = mp.dps
+    assert sqrt(Fraction(2, 3)).ae(sqrt(mpf('2/3')))
+    assert sqrt(Decimal(2)/Decimal(3)).ae(sqrt(mpf('2/3')))
+    mp.prec = oldprec

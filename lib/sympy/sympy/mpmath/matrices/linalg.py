@@ -13,6 +13,8 @@ equation system::
 
 using ``lu_solve``::
 
+    >>> from mpmath import *
+    >>> mp.pretty = False
     >>> A = matrix([[1, 2], [3, 4]])
     >>> b = matrix([-10, 10])
     >>> x = lu_solve(A, b)
@@ -40,8 +42,8 @@ keyword ``force_type``::
 
     >>> lu_solve(A, b, force_type=float)
     matrix(
-    [[29.999999999999996],
-     [-19.999999999999996]])
+    [['30.0'],
+     ['-20.0']])
 
 ``lu_solve`` accepts overdetermined systems. It is usually not possible to solve
 such systems, so the residual is minimized instead. Internally this is done
@@ -57,19 +59,19 @@ Matrix factorization
 The function ``lu`` computes an explicit LU factorization of a matrix::
 
     >>> P, L, U = lu(matrix([[0,2,3],[4,5,6],[7,8,9]]))
-    >>> print P
+    >>> print(P)
     [0.0  0.0  1.0]
     [1.0  0.0  0.0]
     [0.0  1.0  0.0]
-    >>> print L
+    >>> print(L)
     [              1.0                0.0  0.0]
     [              0.0                1.0  0.0]
     [0.571428571428571  0.214285714285714  1.0]
-    >>> print U
+    >>> print(U)
     [7.0  8.0                9.0]
     [0.0  2.0                3.0]
     [0.0  0.0  0.214285714285714]
-    >>> print P.T*L*U
+    >>> print(P.T*L*U)
     [0.0  2.0  3.0]
     [4.0  5.0  6.0]
     [7.0  8.0  9.0]
@@ -81,21 +83,20 @@ Matrices may contain interval elements. This allows one to perform
 basic linear algebra operations such as matrix multiplication
 and equation solving with rigorous error bounds::
 
-    >>> a = matrix([['0.1','0.3','1.0'],
+    >>> a = iv.matrix([['0.1','0.3','1.0'],
     ...             ['7.1','5.5','4.8'],
     ...             ['3.2','4.4','5.6']], force_type=mpi)
     >>>
-    >>> b = matrix(['4','0.6','0.5'], force_type=mpi)
-    >>> c = lu_solve(a, b)
-    >>> c
-    matrix(
-    [[[5.2582327113062393041, 5.2582327113062749951]],
-     [[-13.155049396267856583, -13.155049396267821167]],
-     [[7.4206915477497212555, 7.4206915477497310922]]])
-    >>> print a*c
-    [  [3.9999999999999866773, 4.0000000000000133227]]
-    [[0.59999999999972430942, 0.60000000000027142733]]
-    [[0.49999999999982236432, 0.50000000000018474111]]
+    >>> b = iv.matrix(['4','0.6','0.5'], force_type=mpi)
+    >>> c = iv.lu_solve(a, b)
+    >>> print(c)
+    [   [5.2582327113062568605927528666, 5.25823271130625686059275702219]]
+    [[-13.1550493962678375411635581388, -13.1550493962678375411635540152]]
+    [  [7.42069154774972557628979076189, 7.42069154774972557628979190734]]
+    >>> print(a*c)
+    [  [3.99999999999999999999999844904, 4.00000000000000000000000155096]]
+    [[0.599999999999999999999968898009, 0.600000000000000000000031763736]]
+    [[0.499999999999999999999979320485, 0.500000000000000000000020679515]]
 """
 
 # TODO:
@@ -158,9 +159,11 @@ class LinearAlgebraMethods(object):
         """
         Solve the lower part of a LU factorized matrix for y.
         """
-        assert L.rows == L.cols, 'need n*n matrix'
+        if L.rows != L.cols:
+            raise RuntimeError("need n*n matrix")
         n = L.rows
-        assert len(b) == n
+        if len(b) != n:
+            raise ValueError("Value should be equal to n")
         b = copy(b)
         if p: # swap b according to p
             for k in xrange(0, len(p)):
@@ -175,9 +178,11 @@ class LinearAlgebraMethods(object):
         """
         Solve the upper part of a LU factorized matrix for x.
         """
-        assert U.rows == U.cols, 'need n*n matrix'
+        if U.rows != U.cols:
+            raise RuntimeError("need n*n matrix")
         n = U.rows
-        assert len(y) == n
+        if len(y) != n:
+            raise ValueError("Value should be equal to n")
         x = copy(y)
         for i in xrange(n - 1, -1, -1):
             for j in xrange(i + 1, n):
@@ -233,7 +238,8 @@ class LinearAlgebraMethods(object):
         This re-uses the LU decomposition and is thus cheap.
         Usually 3 up to 4 iterations are giving the maximal improvement.
         """
-        assert A.rows == A.cols, 'need n*n matrix' # TODO: really?
+        if A.rows != A.cols:
+            raise RuntimeError("need n*n matrix") # TODO: really?
         for _ in xrange(maxsteps):
             r = ctx.residual(A, x, b)
             if ctx.norm(r, 2) < 10*ctx.eps:
@@ -324,21 +330,23 @@ class LinearAlgebraMethods(object):
         H and p contain all information about the transformation matrices.
         x is the solution, res the residual.
         """
-        assert isinstance(A, ctx.matrix)
+        if not isinstance(A, ctx.matrix):
+            raise TypeError("A should be a type of ctx.matrix")
         m = A.rows
         n = A.cols
-        assert m >= n - 1
+        if m < n - 1:
+            raise RuntimeError("Columns should not be less than rows")
         # calculate Householder matrix
         p = []
         for j in xrange(0, n - 1):
-            s = ctx.fsum((A[i,j])**2 for i in xrange(j, m))
+            s = ctx.fsum(abs(A[i,j])**2 for i in xrange(j, m))
             if not abs(s) > ctx.eps:
                 raise ValueError('matrix is numerically singular')
-            p.append(-ctx.sign(A[j,j]) * ctx.sqrt(s))
+            p.append(-ctx.sign(ctx.re(A[j,j])) * ctx.sqrt(s))
             kappa = ctx.one / (s - p[j] * A[j,j])
             A[j,j] -= p[j]
             for k in xrange(j+1, n):
-                y = ctx.fsum(A[i,j] * A[i,k] for i in xrange(j, m)) * kappa
+                y = ctx.fsum(ctx.conj(A[i,j]) * A[i,k] for i in xrange(j, m)) * kappa
                 for i in xrange(j, m):
                     A[i,k] -= A[i,j] * y
         # solve Rx = c1
@@ -470,7 +478,8 @@ class LinearAlgebraMethods(object):
         1. [Wikipedia]_ http://en.wikipedia.org/wiki/Cholesky_decomposition
 
         """
-        assert isinstance(A, ctx.matrix)
+        if not isinstance(A, ctx.matrix):
+            raise RuntimeError("A should be a type of ctx.matrix")
         if not A.rows == A.cols:
             raise ValueError('need n*n matrix')
         if tol is None:
@@ -516,7 +525,8 @@ class LinearAlgebraMethods(object):
             L = ctx.cholesky(A)
             # solve
             n = L.rows
-            assert len(b) == n
+            if len(b) != n:
+                raise ValueError("Value should be equal to n")
             for i in xrange(n):
                 b[i] -= ctx.fsum(L[i,j] * b[j] for j in xrange(i))
                 b[i] /= L[i,i]
@@ -575,3 +585,209 @@ class LinearAlgebraMethods(object):
                 r[j, i] = c[j]
         return r
 
+    def qr(ctx, A, mode = 'full', edps = 10):
+        """
+        Compute a QR factorization $A = QR$ where
+        A is an m x n matrix of real or complex numbers where m >= n
+
+        mode has following meanings:
+        (1) mode = 'raw' returns two matrixes (A, tau) in the
+            internal format used by LAPACK
+        (2) mode = 'skinny' returns the leading n columns of Q
+            and n rows of R
+        (3) Any other value returns the leading m columns of Q
+            and m rows of R
+
+        edps is the increase in mp precision used for calculations
+
+        **Examples**
+
+            >>> from mpmath import *
+            >>> mp.dps = 15
+            >>> mp.pretty = True
+            >>> A = matrix([[1, 2], [3, 4], [1, 1]])
+            >>> Q, R = qr(A)
+            >>> Q
+            [-0.301511344577764   0.861640436855329   0.408248290463863]
+            [-0.904534033733291  -0.123091490979333  -0.408248290463863]
+            [-0.301511344577764  -0.492365963917331   0.816496580927726]
+            >>> R
+            [-3.3166247903554  -4.52267016866645]
+            [             0.0  0.738548945875996]
+            [             0.0                0.0]
+            >>> Q * R
+            [1.0  2.0]
+            [3.0  4.0]
+            [1.0  1.0]
+            >>> chop(Q.T * Q)
+            [1.0  0.0  0.0]
+            [0.0  1.0  0.0]
+            [0.0  0.0  1.0]
+            >>> B = matrix([[1+0j, 2-3j], [3+j, 4+5j]])
+            >>> Q, R = qr(B)
+            >>> nprint(Q)
+            [     (-0.301511 + 0.0j)   (0.0695795 - 0.95092j)]
+            [(-0.904534 - 0.301511j)  (-0.115966 + 0.278318j)]
+            >>> nprint(R)
+            [(-3.31662 + 0.0j)  (-5.72872 - 2.41209j)]
+            [              0.0       (3.91965 + 0.0j)]
+            >>> Q * R
+            [(1.0 + 0.0j)  (2.0 - 3.0j)]
+            [(3.0 + 1.0j)  (4.0 + 5.0j)]
+            >>> chop(Q.T * Q.conjugate())
+            [1.0  0.0]
+            [0.0  1.0]
+
+        """
+
+        # check values before continuing
+        assert isinstance(A, ctx.matrix)
+        m = A.rows
+        n = A.cols
+        assert n > 1
+        assert m >= n
+        assert edps >= 0
+
+        # check for complex data type
+        cmplx = any(type(x) is ctx.mpc for x in A)
+
+        # temporarily increase the precision and initialize
+        with ctx.extradps(edps):
+            tau = ctx.matrix(n,1)
+            A = A.copy()
+
+            # ---------------
+            # FACTOR MATRIX A
+            # ---------------
+            if cmplx:
+                one = ctx.mpc('1.0', '0.0')
+                zero = ctx.mpc('0.0', '0.0')
+                rzero = ctx.mpf('0.0')
+
+                # main loop to factor A (complex)
+                for j in xrange(0, n):
+                    alpha = A[j,j]
+                    alphr = ctx.re(alpha)
+                    alphi = ctx.im(alpha)
+
+                    if (m-j) >= 2:
+                        xnorm = ctx.fsum( A[i,j]*ctx.conj(A[i,j]) for i in xrange(j+1, m) )
+                        xnorm = ctx.re( ctx.sqrt(xnorm) )
+                    else:
+                        xnorm = rzero
+
+                    if (xnorm == rzero) and (alphi == rzero):
+                        tau[j] = zero
+                        continue
+
+                    if alphr < rzero:
+                        beta = ctx.sqrt(alphr**2 + alphi**2 + xnorm**2)
+                    else:
+                        beta = -ctx.sqrt(alphr**2 + alphi**2 + xnorm**2)
+
+                    tau[j] = ctx.mpc( (beta - alphr) / beta, -alphi / beta )
+                    t = -ctx.conj(tau[j])
+                    za = one / (alpha - beta)
+
+                    for i in xrange(j+1, m):
+                        A[i,j] *= za
+
+                    A[j,j] = one
+                    for k in xrange(j+1, n):
+                        y = ctx.fsum(A[i,j] * ctx.conj(A[i,k]) for i in xrange(j, m))
+                        temp = t * ctx.conj(y)
+                        for i in xrange(j, m):
+                            A[i,k] += A[i,j] * temp
+
+                    A[j,j] = ctx.mpc(beta, '0.0')
+            else:
+                one = ctx.mpf('1.0')
+                zero = ctx.mpf('0.0')
+
+                # main loop to factor A (real)
+                for j in xrange(0, n):
+                    alpha = A[j,j]
+
+                    if (m-j) > 2:
+                        xnorm = ctx.fsum( (A[i,j])**2 for i in xrange(j+1, m) )
+                        xnorm = ctx.sqrt(xnorm)
+                    elif (m-j) == 2:
+                        xnorm = abs( A[m-1,j] )
+                    else:
+                        xnorm = zero
+
+                    if xnorm == zero:
+                        tau[j] = zero
+                        continue
+
+                    if alpha < zero:
+                        beta = ctx.sqrt(alpha**2 + xnorm**2)
+                    else:
+                        beta = -ctx.sqrt(alpha**2 + xnorm**2)
+
+                    tau[j] = (beta - alpha) / beta
+                    t = -tau[j]
+                    da = one / (alpha - beta)
+
+                    for i in xrange(j+1, m):
+                        A[i,j] *= da
+
+                    A[j,j] = one
+                    for k in xrange(j+1, n):
+                        y = ctx.fsum( A[i,j] * A[i,k] for i in xrange(j, m) )
+                        temp = t * y
+                        for i in xrange(j,m):
+                            A[i,k] += A[i,j] * temp
+
+                    A[j,j] = beta
+
+            # return factorization in same internal format as LAPACK
+            if (mode == 'raw') or (mode == 'RAW'):
+                return A, tau
+
+            # ----------------------------------
+            # FORM Q USING BACKWARD ACCUMULATION
+            # ----------------------------------
+
+            # form R before the values are overwritten
+            R = A.copy()
+            for j in xrange(0, n):
+                for i in xrange(j+1, m):
+                    R[i,j] = zero
+
+            # set the value of p (number of columns of Q to return)
+            p = m
+            if (mode == 'skinny') or (mode == 'SKINNY'):
+                p = n
+
+            # add columns to A if needed and initialize
+            A.cols += (p-n)
+            for j in xrange(0, p):
+                A[j,j] = one
+                for i in xrange(0, j):
+                    A[i,j] = zero
+
+            # main loop to form Q
+            for j in xrange(n-1, -1, -1):
+                t = -tau[j]
+                A[j,j] += t
+
+                for k in xrange(j+1, p):
+                    if cmplx:
+                        y = ctx.fsum(A[i,j] * ctx.conj(A[i,k]) for i in xrange(j+1, m))
+                        temp = t * ctx.conj(y)
+                    else:
+                        y = ctx.fsum(A[i,j] * A[i,k] for i in xrange(j+1, m))
+                        temp = t * y
+                    A[j,k] = temp
+                    for i in xrange(j+1, m):
+                        A[i,k] += A[i,j] * temp
+
+                for i in xrange(j+1, m):
+                    A[i, j] *= t
+
+            return A, R[0:p,0:n]
+
+        # ------------------
+        # END OF FUNCTION QR
+        # ------------------

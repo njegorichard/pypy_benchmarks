@@ -1,5 +1,6 @@
-from sympy.mpmath import *
-from sympy.mpmath.calculus.optimization import Secant, Muller, Bisection, Illinois, \
+import pytest
+from mpmath import *
+from mpmath.calculus.optimization import Secant, Muller, Bisection, Illinois, \
     Pegasus, Anderson, Ridder, ANewton, Newton, MNewton, MDNewton
 
 def test_findroot():
@@ -27,6 +28,24 @@ def test_findroot():
     #assert isinstance(findroot(f, 1, force_type=complex, tol=1e-10), complex)
     assert isinstance(fp.findroot(f, 1, tol=1e-10), float)
     assert isinstance(fp.findroot(f, 1+0j, tol=1e-10), complex)
+
+    # issue 401
+    with pytest.raises(ValueError):
+        with workprec(2):
+            findroot(lambda x: x**2 - 4456178*x + 60372201703370,
+                     mpc(real='5.278e+13', imag='-5.278e+13'))
+
+    # issue 192
+    with pytest.raises(ValueError):
+        findroot(lambda x: -1, 0)
+
+    # issue 387
+    with pytest.raises(ValueError):
+        findroot(lambda p: (1 - p)**30 - 1, 0.9)
+
+def test_bisection():
+    # issue 273
+    assert findroot(lambda x: x**2-1,(0,2),solver='bisect') == 1
 
 def test_mnewton():
     f = lambda x: polyval([1,3,3,1],x)
@@ -71,5 +90,3 @@ def test_trivial():
     assert findroot(lambda x: 0, 1) == 1
     assert findroot(lambda x: x, 0) == 0
     #assert findroot(lambda x, y: x + y, (1, -1)) == (1, -1)
-
-

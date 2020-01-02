@@ -15,11 +15,13 @@ Mpmath can evaluate `\pi` to arbitrary precision::
     >>> +pi
     3.1415926535897932384626433832795028841971693993751
 
-This shows digits 99991-100000 of `\pi`::
+This shows digits 99991-100000 of `\pi` (the last digit is actually
+a 4 when the decimal expansion is truncated, but here the nearest
+rounding is used)::
 
     >>> mp.dps = 100000
     >>> str(pi)[-10:]
-    '5549362464'
+    '5549362465'
 
 **Possible issues**
 
@@ -74,11 +76,13 @@ Mpmath can be evaluate `e` to arbitrary precision::
     >>> +e
     2.7182818284590452353602874713526624977572470937
 
-This shows digits 99991-100000 of `e`::
+This shows digits 99991-100000 of `e` (the last digit is actually
+a 5 when the decimal expansion is truncated, but here the nearest
+rounding is used)::
 
     >>> mp.dps = 100000
     >>> str(e)[-10:]
-    '2100427165'
+    '2100427166'
 
 **Possible issues**
 
@@ -137,11 +141,13 @@ although this is less efficient::
     >>> limit(lambda n: harmonic(n)-log(n), inf)
     0.57721566490153286060651209008240243104215933593992
 
-This shows digits 9991-10000 of `\gamma`::
+This shows digits 9991-10000 of `\gamma` (the last digit is actually
+a 5 when the decimal expansion is truncated, but here the nearest
+rounding is used)::
 
     >>> mp.dps = 10000
     >>> str(euler)[-10:]
-    '4679858165'
+    '4679858166'
 
 Integrals, series, and representations for `\gamma` in terms of
 special functions include the following (there are many others)::
@@ -191,11 +197,13 @@ this is significantly less efficient::
     >>> nsum(lambda k: (-1)**k/(2*k+1)**2, [0, inf])
     0.91596559417721901505460351493238411077414937428167
 
-This shows digits 9991-10000 of `K`::
+This shows digits 9991-10000 of `K` (the last digit is actually
+a 3 when the decimal expansion is truncated, but here the nearest
+rounding is used)::
 
     >>> mp.dps = 10000
     >>> str(catalan)[-10:]
-    '9537871503'
+    '9537871504'
 
 Catalan's constant has numerous integral representations::
 
@@ -407,7 +415,7 @@ Square root evaluation is fast at huge precision::
     >>> mp.dps = 50000
     >>> a = sqrt(3)
     >>> str(a)[-10:]
-    '9329332814'
+    '9329332815'
 
 :func:`mpmath.iv.sqrt` supports interval arguments::
 
@@ -1267,8 +1275,8 @@ into mpmath numbers::
 """
 
 re = r"""
-Returns the real part of `x`, `\Re(x)`. Unlike ``x.real``,
-:func:`~mpmath.re` converts `x` to a mpmath number::
+Returns the real part of `x`, `\Re(x)`. :func:`~mpmath.re`
+converts a non-mpmath number to an mpmath number::
 
     >>> from mpmath import *
     >>> mp.dps = 15; mp.pretty = False
@@ -1279,8 +1287,8 @@ Returns the real part of `x`, `\Re(x)`. Unlike ``x.real``,
 """
 
 im = r"""
-Returns the imaginary part of `x`, `\Im(x)`. Unlike ``x.imag``,
-:func:`~mpmath.im` converts `x` to a mpmath number::
+Returns the imaginary part of `x`, `\Im(x)`. :func:`~mpmath.im`
+converts a non-mpmath number to an mpmath number::
 
     >>> from mpmath import *
     >>> mp.dps = 15; mp.pretty = False
@@ -1355,6 +1363,22 @@ Evaluation works for extremely tiny values::
     1.0e-10000000
 
 """
+
+log1p = r"""
+Computes `\log(1+x)`, accurately for small `x`.
+
+    >>> from mpmath import *
+    >>> mp.dps = 15; mp.pretty = True
+    >>> log(1+1e-10); print(mp.log1p(1e-10))
+    1.00000008269037e-10
+    9.9999999995e-11
+    >>> mp.log1p(1e-100j)
+    (5.0e-201 + 1.0e-100j)
+    >>> mp.log1p(0)
+    0.0
+
+"""
+
 
 powm1 = r"""
 Computes `x^y - 1`, accurately when `x^y` is very close to 1.
@@ -1878,8 +1902,8 @@ Some special values are::
 An example of a sum that can be computed more accurately and
 efficiently via :func:`~mpmath.altzeta` than via numerical summation::
 
-    >>> sum(-(-1)**n / n**2.5 for n in range(1, 100))
-    0.86720495150398402
+    >>> sum(-(-1)**n / mpf(n)**2.5 for n in range(1, 100))
+    0.867204951503984
     >>> altzeta(2.5)
     0.867199889012184
 
@@ -2849,6 +2873,23 @@ Please note that, as currently implemented, evaluation of `\,_pF_{p-1}`
 with `p \ge 3` may be slow or inaccurate when `|z-1|` is small,
 for some parameter values.
 
+Evaluation may be aborted if convergence appears to be too slow.
+The optional ``maxterms`` (limiting the number of series terms) and ``maxprec``
+(limiting the internal precision) keyword arguments can be used
+to control evaluation::
+
+    >>> hyper([1,2,3], [4,5,6], 10000)
+    Traceback (most recent call last):
+      ...
+    NoConvergence: Hypergeometric series converges too slowly. Try increasing maxterms.
+    >>> hyper([1,2,3], [4,5,6], 10000, maxterms=10**6)
+    7.622806053177969474396918e+4310
+
+Additional options include ``force_series`` (which forces direct use of
+a hypergeometric series even if another evaluation method might work better)
+and ``asymp_tol`` which controls the target tolerance for using
+asymptotic series.
+
 When `p > q+1`, ``hyper`` computes the (iterated) Borel sum of the divergent
 series. For `\,_2F_0` the Borel sum has an analytic solution and can be
 computed efficiently (see :func:`~mpmath.hyp2f0`). For higher degrees, the functions
@@ -2885,6 +2926,34 @@ a value with full accuracy::
 
 Note that with the positive `z` value, there is a complex part in the
 correct result, which falls below the tolerance of the asymptotic series.
+
+By default, a parameter that appears in both ``a_s`` and ``b_s`` will be removed
+unless it is a nonpositive integer. This generally speeds up evaluation
+by producing a hypergeometric function of lower order.
+This optimization can be disabled by passing ``eliminate=False``.
+
+    >>> hyper([1,2,3], [4,5,3], 10000)
+    1.268943190440206905892212e+4321
+    >>> hyper([1,2,3], [4,5,3], 10000, eliminate=False)
+    Traceback (most recent call last):
+      ...
+    NoConvergence: Hypergeometric series converges too slowly. Try increasing maxterms.
+    >>> hyper([1,2,3], [4,5,3], 10000, eliminate=False, maxterms=10**6)
+    1.268943190440206905892212e+4321
+
+If a nonpositive integer `-n` appears in both ``a_s`` and ``b_s``, this parameter
+cannot be unambiguously removed since it creates a term 0 / 0.
+In this case the hypergeometric series is understood to terminate before
+the division by zero occurs. This convention is consistent with Mathematica.
+An alternative convention of eliminating the parameters can be toggled
+with ``eliminate_all=True``:
+
+    >>> hyper([2,-1], [-1], 3)
+    7.0
+    >>> hyper([2,-1], [-1], 3, eliminate_all=True)
+    0.25
+    >>> hyper([2], [], 3)
+    0.25
 
 """
 
@@ -3335,7 +3404,7 @@ An integral representation::
     0.06674960718150520648014567
 
 
-[1] http://www.math.ucla.edu/~cbm/aands/page_504.htm
+[1] http://people.math.sfu.ca/~cbm/aands/page_504.htm
 """
 
 hyp2f0 = r"""
@@ -3402,7 +3471,7 @@ The coefficients of the polynomials can be recovered using Taylor expansion::
     [1.0, -2.0, 4.5, -7.5, 6.5625, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 
-[1] http://www.math.ucla.edu/~cbm/aands/page_504.htm
+[1] http://people.math.sfu.ca/~cbm/aands/page_504.htm
 """
 
 
@@ -3972,7 +4041,7 @@ hypergeometric function `\,_2F_2`::
    http://functions.wolfram.com/GammaBetaErf/ExpIntegralEi/27/01/
 
 2. Abramowitz & Stegun, section 5:
-   http://www.math.sfu.ca/~cbm/aands/page_228.htm
+   http://people.math.sfu.ca/~cbm/aands/page_228.htm
 
 3. Asymptotic expansion for Ei:
    http://mathworld.wolfram.com/En-Function.html
@@ -4386,10 +4455,10 @@ negative half of the real axis. They can be computed with
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/ai.py
-.. image :: /modules/mpmath/plots/ai.png
-.. literalinclude :: /modules/mpmath/plots/ai_c.py
-.. image :: /modules/mpmath/plots/ai_c.png
+.. literalinclude :: /plots/ai.py
+.. image :: /plots/ai.png
+.. literalinclude :: /plots/ai_c.py
+.. image :: /plots/ai_c.png
 
 **Basic examples**
 
@@ -4579,10 +4648,10 @@ with :func:`~mpmath.airybizero`.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/bi.py
-.. image :: /modules/mpmath/plots/bi.png
-.. literalinclude :: /modules/mpmath/plots/bi_c.py
-.. image :: /modules/mpmath/plots/bi_c.png
+.. literalinclude :: /plots/bi.py
+.. image :: /plots/bi.png
+.. literalinclude :: /plots/bi_c.py
+.. image :: /plots/bi_c.png
 
 **Basic examples**
 
@@ -4881,8 +4950,8 @@ not the modulus `k` which is sometimes used.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/ellipk.py
-.. image :: /modules/mpmath/plots/ellipk.png
+.. literalinclude :: /plots/ellipk.py
+.. image :: /plots/ellipk.png
 
 **Examples**
 
@@ -5121,8 +5190,8 @@ The Laguerre polynomials are orthogonal with respect to the weight
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/laguerre.py
-.. image :: /modules/mpmath/plots/laguerre.png
+.. literalinclude :: /plots/laguerre.py
+.. image :: /plots/laguerre.png
 
 **Examples**
 
@@ -5198,8 +5267,8 @@ for `\Re{z} > 0`, or generally
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/hermite.py
-.. image :: /modules/mpmath/plots/hermite.png
+.. literalinclude :: /plots/hermite.py
+.. image :: /plots/hermite.png
 
 **Examples**
 
@@ -5398,8 +5467,8 @@ A third definition is in terms of the hypergeometric function
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/legendre.py
-.. image :: /modules/mpmath/plots/legendre.png
+.. literalinclude :: /plots/legendre.py
+.. image :: /plots/legendre.png
 
 **Basic evaluation**
 
@@ -5548,7 +5617,7 @@ Verifying the associated Legendre differential equation::
 legenq = r"""
 Calculates the (associated) Legendre function of the second kind of
 degree *n* and order *m*, `Q_n^m(z)`. Taking `m = 0` gives the ordinary
-Legendre function of the second kind, `Q_n(z)`. The parameters may
+Legendre function of the second kind, `Q_n(z)`. The parameters may be
 complex numbers.
 
 The Legendre functions of the second kind give a second set of
@@ -5624,8 +5693,8 @@ evaluated for nonintegral `n`.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/chebyt.py
-.. image :: /modules/mpmath/plots/chebyt.png
+.. literalinclude :: /plots/chebyt.py
+.. image :: /plots/chebyt.png
 
 **Basic evaluation**
 
@@ -5674,8 +5743,8 @@ evaluated for nonintegral `n`.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/chebyu.py
-.. image :: /modules/mpmath/plots/chebyu.png
+.. literalinclude :: /plots/chebyu.py
+.. image :: /plots/chebyu.png
 
 **Basic evaluation**
 
@@ -5743,10 +5812,10 @@ is computed.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/besselj.py
-.. image :: /modules/mpmath/plots/besselj.png
-.. literalinclude :: /modules/mpmath/plots/besselj_c.py
-.. image :: /modules/mpmath/plots/besselj_c.png
+.. literalinclude :: /plots/besselj.py
+.. image :: /plots/besselj.png
+.. literalinclude :: /plots/besselj_c.py
+.. image :: /plots/besselj_c.png
 
 **Examples**
 
@@ -5863,10 +5932,10 @@ is computed.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/besseli.py
-.. image :: /modules/mpmath/plots/besseli.png
-.. literalinclude :: /modules/mpmath/plots/besseli_c.py
-.. image :: /modules/mpmath/plots/besseli_c.png
+.. literalinclude :: /plots/besseli.py
+.. image :: /plots/besseli.png
+.. literalinclude :: /plots/besseli_c.py
+.. image :: /plots/besseli_c.png
 
 **Examples**
 
@@ -5938,10 +6007,10 @@ is computed.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/bessely.py
-.. image :: /modules/mpmath/plots/bessely.png
-.. literalinclude :: /modules/mpmath/plots/bessely_c.py
-.. image :: /modules/mpmath/plots/bessely_c.png
+.. literalinclude :: /plots/bessely.py
+.. image :: /plots/bessely.png
+.. literalinclude :: /plots/bessely_c.py
+.. image :: /plots/bessely_c.png
 
 **Examples**
 
@@ -6001,10 +6070,10 @@ limit.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/besselk.py
-.. image :: /modules/mpmath/plots/besselk.png
-.. literalinclude :: /modules/mpmath/plots/besselk_c.py
-.. image :: /modules/mpmath/plots/besselk_c.png
+.. literalinclude :: /plots/besselk.py
+.. image :: /plots/besselk.png
+.. literalinclude :: /plots/besselk_c.py
+.. image :: /plots/besselk_c.png
 
 **Examples**
 
@@ -6063,10 +6132,10 @@ which is the complex combination of Bessel functions given by
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/hankel1.py
-.. image :: /modules/mpmath/plots/hankel1.png
-.. literalinclude :: /modules/mpmath/plots/hankel1_c.py
-.. image :: /modules/mpmath/plots/hankel1_c.png
+.. literalinclude :: /plots/hankel1.py
+.. image :: /plots/hankel1.png
+.. literalinclude :: /plots/hankel1_c.py
+.. image :: /plots/hankel1_c.png
 
 **Examples**
 
@@ -6090,10 +6159,10 @@ which is the complex combination of Bessel functions given by
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/hankel2.py
-.. image :: /modules/mpmath/plots/hankel2.png
-.. literalinclude :: /modules/mpmath/plots/hankel2_c.py
-.. image :: /modules/mpmath/plots/hankel2_c.png
+.. literalinclude :: /plots/hankel2.py
+.. image :: /plots/hankel2.png
+.. literalinclude :: /plots/hankel2_c.py
+.. image :: /plots/hankel2_c.png
 
 **Examples**
 
@@ -6131,10 +6200,10 @@ is based on [Corless]_.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/lambertw.py
-.. image :: /modules/mpmath/plots/lambertw.png
-.. literalinclude :: /modules/mpmath/plots/lambertw_c.py
-.. image :: /modules/mpmath/plots/lambertw_c.png
+.. literalinclude :: /plots/lambertw.py
+.. image :: /plots/lambertw.png
+.. literalinclude :: /plots/lambertw_c.py
+.. image :: /plots/lambertw_c.png
 
 **Basic examples**
 
@@ -6409,7 +6478,7 @@ Evaluation is supported for arbitrary arguments::
 
 **References**
 
-1. http://www.research.att.com/~njas/sequences/A000178
+1. http://oeis.org/A000178
 
 """
 
@@ -6512,7 +6581,7 @@ definition::
 
 **References**
 
-1. http://www.research.att.com/~njas/sequences/A002109
+1. http://oeis.org/A002109
 2. http://mathworld.wolfram.com/Hyperfactorial.html
 
 """
@@ -7218,20 +7287,17 @@ for `z` within the unit circle:
     >>> nsum(lambda k: 0.25**k / k**(3+4j), [1,inf])
     (0.24258605789446 - 0.00222938275488344j)
 
-It is also currently supported outside of the unit circle for `z`
-not too large in magnitude::
+It is also supported outside of the unit circle::
 
     >>> polylog(1+j, 20+40j)
     (-7.1421172179728 - 3.92726697721369j)
     >>> polylog(1+j, 200+400j)
-    Traceback (most recent call last):
-      ...
-    NotImplementedError: polylog for arbitrary s and z
+    (-5.41934747194626 - 9.94037752563927j)
 
 **References**
 
 1. Richard Crandall, "Note on fast polylogarithm computation"
-   http://people.reed.edu/~crandall/papers/Polylog.pdf
+   http://www.reed.edu/physics/faculty/crandall/papers/Polylog.pdf
 2. http://en.wikipedia.org/wiki/Polylogarithm
 3. http://mathworld.wolfram.com/Polylogarithm.html
 
@@ -8057,8 +8123,8 @@ The imaginary part is given by :func:`~mpmath.bei`.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/ber.py
-.. image :: /modules/mpmath/plots/ber.png
+.. literalinclude :: /plots/ber.py
+.. image :: /plots/ber.png
 
 **Examples**
 
@@ -8102,8 +8168,8 @@ The imaginary part is given by :func:`~mpmath.kei`.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/ker.py
-.. image :: /modules/mpmath/plots/ker.png
+.. literalinclude :: /plots/ker.py
+.. image :: /plots/ker.png
 
 **Examples**
 
@@ -8506,8 +8572,8 @@ A second solution is given by :func:`~mpmath.lommels2`.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/lommels1.py
-.. image :: /modules/mpmath/plots/lommels1.png
+.. literalinclude :: /plots/lommels1.py
+.. image :: /plots/lommels1.png
 
 **Examples**
 
@@ -8561,8 +8627,8 @@ which solves the same differential equation as
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/lommels2.py
-.. image :: /modules/mpmath/plots/lommels2.png
+.. literalinclude :: /plots/lommels2.py
+.. image :: /plots/lommels2.png
 
 **Examples**
 
@@ -9085,10 +9151,10 @@ to be complex in this implementation (see references).
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/coulombf.py
-.. image :: /modules/mpmath/plots/coulombf.png
-.. literalinclude :: /modules/mpmath/plots/coulombf_c.py
-.. image :: /modules/mpmath/plots/coulombf_c.png
+.. literalinclude :: /plots/coulombf.py
+.. image :: /plots/coulombf.png
+.. literalinclude :: /plots/coulombf_c.py
+.. image :: /plots/coulombf_c.png
 
 **Examples**
 
@@ -9200,10 +9266,10 @@ See :func:`~mpmath.coulombf` for additional information.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/coulombg.py
-.. image :: /modules/mpmath/plots/coulombg.png
-.. literalinclude :: /modules/mpmath/plots/coulombg_c.py
-.. image :: /modules/mpmath/plots/coulombg_c.png
+.. literalinclude :: /plots/coulombg.py
+.. image :: /plots/coulombg.png
+.. literalinclude :: /plots/coulombg_c.py
+.. image :: /plots/coulombg_c.png
 
 **Examples**
 
@@ -9648,32 +9714,32 @@ are permitted to be complex numbers.
 
 .. note ::
 
-    :func:`~mpmath.spherharm` returns a complex number, even the value is
+    :func:`~mpmath.spherharm` returns a complex number, even if the value is
     purely real.
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/spherharm40.py
+.. literalinclude :: /plots/spherharm40.py
 
 `Y_{4,0}`:
 
-.. image :: /modules/mpmath/plots/spherharm40.png
+.. image :: /plots/spherharm40.png
 
 `Y_{4,1}`:
 
-.. image :: /modules/mpmath/plots/spherharm41.png
+.. image :: /plots/spherharm41.png
 
 `Y_{4,2}`:
 
-.. image :: /modules/mpmath/plots/spherharm42.png
+.. image :: /plots/spherharm42.png
 
 `Y_{4,3}`:
 
-.. image :: /modules/mpmath/plots/spherharm43.png
+.. image :: /plots/spherharm43.png
 
 `Y_{4,4}`:
 
-.. image :: /modules/mpmath/plots/spherharm44.png
+.. image :: /plots/spherharm44.png
 
 **Examples**
 
@@ -9704,8 +9770,8 @@ on the unit sphere::
     >>> Y1 = lambda t,p: fp.spherharm(l1,m1,t,p)
     >>> Y2 = lambda t,p: fp.conj(fp.spherharm(l2,m2,t,p))
     >>> l1 = l2 = 3; m1 = m2 = 2
-    >>> print(fp.quad(lambda t,p: Y1(t,p)*Y2(t,p)*dS(t,p), *sphere))
-    (1+0j)
+    >>> fp.chop(fp.quad(lambda t,p: Y1(t,p)*Y2(t,p)*dS(t,p), *sphere))
+    1.0000000000000007
     >>> m2 = 1    # m1 != m2
     >>> print(fp.chop(fp.quad(lambda t,p: Y1(t,p)*Y2(t,p)*dS(t,p), *sphere)))
     0.0
@@ -9738,10 +9804,10 @@ particular solution is given by the Scorer Hi-function
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/gi.py
-.. image :: /modules/mpmath/plots/gi.png
-.. literalinclude :: /modules/mpmath/plots/gi_c.py
-.. image :: /modules/mpmath/plots/gi_c.png
+.. literalinclude :: /plots/gi.py
+.. image :: /plots/gi.png
+.. literalinclude :: /plots/gi_c.py
+.. image :: /plots/gi_c.png
 
 **Examples**
 
@@ -9832,10 +9898,10 @@ differential equation `f''(z) - z f(z) = 1/\pi`. See also
 
 **Plots**
 
-.. literalinclude :: /modules/mpmath/plots/hi.py
-.. image :: /modules/mpmath/plots/hi.png
-.. literalinclude :: /modules/mpmath/plots/hi_c.py
-.. image :: /modules/mpmath/plots/hi_c.png
+.. literalinclude :: /plots/hi.py
+.. image :: /plots/hi.png
+.. literalinclude :: /plots/hi_c.py
+.. image :: /plots/hi_c.png
 
 **Examples**
 
@@ -9894,5 +9960,93 @@ Verifying the integral representation::
     >>> Ai,Bi = airyai,airybi
     >>> Bi(z)*(Ai(z,-1)-Ai(-inf,-1)) - Ai(z)*(Bi(z,-1)-Bi(-inf,-1))
     0.6095559998265972956089949
+
+"""
+
+
+stirling1 = r"""
+Gives the Stirling number of the first kind `s(n,k)`, defined by
+
+.. math ::
+
+    x(x-1)(x-2)\cdots(x-n+1) = \sum_{k=0}^n s(n,k) x^k.
+
+The value is computed using an integer recurrence. The implementation
+is not optimized for approximating large values quickly.
+
+**Examples**
+
+Comparing with the generating function::
+
+    >>> from mpmath import *
+    >>> mp.dps = 25; mp.pretty = True
+    >>> taylor(lambda x: ff(x, 5), 0, 5)
+    [0.0, 24.0, -50.0, 35.0, -10.0, 1.0]
+    >>> [stirling1(5, k) for k in range(6)]
+    [0.0, 24.0, -50.0, 35.0, -10.0, 1.0]
+
+Recurrence relation::
+
+    >>> n, k = 5, 3
+    >>> stirling1(n+1,k) + n*stirling1(n,k) - stirling1(n,k-1)
+    0.0
+
+The matrices of Stirling numbers of first and second kind are inverses
+of each other::
+
+    >>> A = matrix(5, 5); B = matrix(5, 5)
+    >>> for n in range(5):
+    ...     for k in range(5):
+    ...         A[n,k] = stirling1(n,k)
+    ...         B[n,k] = stirling2(n,k)
+    ...
+    >>> A * B
+    [1.0  0.0  0.0  0.0  0.0]
+    [0.0  1.0  0.0  0.0  0.0]
+    [0.0  0.0  1.0  0.0  0.0]
+    [0.0  0.0  0.0  1.0  0.0]
+    [0.0  0.0  0.0  0.0  1.0]
+
+Pass ``exact=True`` to obtain exact values of Stirling numbers as integers::
+
+    >>> stirling1(42, 5)
+    -2.864498971768501633736628e+50
+    >>> print(stirling1(42, 5, exact=True))
+    -286449897176850163373662803014001546235808317440000
+
+"""
+
+stirling2 = r"""
+Gives the Stirling number of the second kind `S(n,k)`, defined by
+
+.. math ::
+
+    x^n = \sum_{k=0}^n S(n,k) x(x-1)(x-2)\cdots(x-k+1)
+
+The value is computed using integer arithmetic to evaluate a power sum.
+The implementation is not optimized for approximating large values quickly.
+
+**Examples**
+
+Comparing with the generating function::
+
+    >>> from mpmath import *
+    >>> mp.dps = 25; mp.pretty = True
+    >>> taylor(lambda x: sum(stirling2(5,k) * ff(x,k) for k in range(6)), 0, 5)
+    [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+Recurrence relation::
+
+    >>> n, k = 5, 3
+    >>> stirling2(n+1,k) - k*stirling2(n,k) - stirling2(n,k-1)
+    0.0
+
+Pass ``exact=True`` to obtain exact values of Stirling numbers as integers::
+
+    >>> stirling2(52, 10)
+    2.641822121003543906807485e+45
+    >>> print(stirling2(52, 10, exact=True))
+    2641822121003543906807485307053638921722527655
+
 
 """

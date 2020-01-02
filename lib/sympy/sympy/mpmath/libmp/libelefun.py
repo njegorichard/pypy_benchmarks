@@ -175,7 +175,7 @@ def ln10_fixed(prec):
     return machin([(46, 31), (34, 49), (20, 161)], prec, True)
 
 
-"""
+r"""
 For computation of pi, we use the Chudnovsky series:
 
              oo
@@ -783,9 +783,9 @@ def mpf_log_hypot(a, b, prec, rnd):
 
 def atan_newton(x, prec):
     if prec >= 100:
-        r = math.atan((x>>(prec-53))/2.0**53)
+        r = math.atan(int((x>>(prec-53)))/2.0**53)
     else:
-        r = math.atan(x/2.0**prec)
+        r = math.atan(int(x)/2.0**prec)
     prevp = 50
     r = MPZ(int(r * 2.0**53) >> (53-prevp))
     extra_p = 50
@@ -910,15 +910,15 @@ def mpf_atan2(y, x, prec, rnd=round_fast):
         return mpf_pos(tquo, prec, rnd)
 
 def mpf_asin(x, prec, rnd=round_fast):
-  sign, man, exp, bc = x
-  if bc+exp > 0 and x not in (fone, fnone):
-      raise ComplexResult("asin(x) is real only for -1 <= x <= 1")
-  # asin(x) = 2*atan(x/(1+sqrt(1-x**2)))
-  wp = prec + 15
-  a = mpf_mul(x, x)
-  b = mpf_add(fone, mpf_sqrt(mpf_sub(fone, a, wp), wp), wp)
-  c = mpf_div(x, b, wp)
-  return mpf_shift(mpf_atan(c, prec, rnd), 1)
+    sign, man, exp, bc = x
+    if bc+exp > 0 and x not in (fone, fnone):
+        raise ComplexResult("asin(x) is real only for -1 <= x <= 1")
+    # asin(x) = 2*atan(x/(1+sqrt(1-x**2)))
+    wp = prec + 15
+    a = mpf_mul(x, x)
+    b = mpf_add(fone, mpf_sqrt(mpf_sub(fone, a, wp), wp), wp)
+    c = mpf_div(x, b, wp)
+    return mpf_shift(mpf_atan(c, prec, rnd), 1)
 
 def mpf_acos(x, prec, rnd=round_fast):
     # acos(x) = 2*atan(sqrt(1-x**2)/(1+x))

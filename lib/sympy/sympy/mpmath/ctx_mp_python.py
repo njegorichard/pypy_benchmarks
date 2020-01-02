@@ -5,7 +5,7 @@ from .libmp.backend import basestring, exec_
 from .libmp import (MPZ, MPZ_ZERO, MPZ_ONE, int_types, repr_dps,
     round_floor, round_ceiling, dps_to_prec, round_nearest, prec_to_dps,
     ComplexResult, to_pickable, from_pickable, normalize,
-    from_int, from_float, from_str, to_int, to_float, to_str,
+    from_int, from_float, from_npfloat, from_Decimal, from_str, to_int, to_float, to_str,
     from_rational, from_man_exp,
     fone, fzero, finf, fninf, fnan,
     mpf_abs, mpf_pos, mpf_neg, mpf_add, mpf_sub, mpf_mul, mpf_mul_int,
@@ -140,7 +140,7 @@ class _mpf(mpnumeric):
     def __hash__(s): return mpf_hash(s._mpf_)
     def __int__(s): return int(to_int(s._mpf_))
     def __long__(s): return long(to_int(s._mpf_))
-    def __float__(s): return to_float(s._mpf_)
+    def __float__(s): return to_float(s._mpf_, rnd=s.context._prec_rounding[1])
     def __complex__(s): return complex(float(s))
     def __nonzero__(s): return s._mpf_ != fzero
 
@@ -351,7 +351,7 @@ class _constant(_mpf):
         return self.func(prec, rounding)
 
     def __repr__(self):
-        return "<%s: %s~>" % (self.name, self.context.nstr(self))
+        return "<%s: %s~>" % (self.name, self.context.nstr(self(dps=15)))
 
 
 class _mpc(mpnumeric):
@@ -395,7 +395,7 @@ class _mpc(mpnumeric):
         return "(%s)" % mpc_to_str(s._mpc_, s.context._str_digits)
 
     def __complex__(s):
-        return mpc_to_complex(s._mpc_)
+        return mpc_to_complex(s._mpc_, rnd=s.context._prec_rounding[1])
 
     def __pos__(s):
         cls, new, (prec, rounding) = s._ctxdata
@@ -578,7 +578,7 @@ class _mpc(mpnumeric):
 complex_types = (complex, _mpc)
 
 
-class PythonMPContext:
+class PythonMPContext(object):
 
     def __init__(ctx):
         ctx._prec_rounding = [53, round_nearest]
@@ -645,6 +645,10 @@ class PythonMPContext:
         if isinstance(x, float): return ctx.make_mpf(from_float(x))
         if isinstance(x, complex):
             return ctx.make_mpc((from_float(x.real), from_float(x.imag)))
+        if type(x).__module__ == 'numpy': return ctx.npconvert(x)
+        if isinstance(x, numbers.Rational): # e.g. Fraction
+            try: x = rational.mpq(int(x.numerator), int(x.denominator))
+            except: pass
         prec, rounding = ctx._prec_rounding
         if isinstance(x, rational.mpq):
             p, q = x._mpq_
@@ -659,7 +663,22 @@ class PythonMPContext:
         if hasattr(x, '_mpc_'): return ctx.make_mpc(x._mpc_)
         if hasattr(x, '_mpmath_'):
             return ctx.convert(x._mpmath_(prec, rounding))
+        if type(x).__module__ == 'decimal':
+            try: return ctx.make_mpf(from_Decimal(x, prec, rounding))
+            except: pass
         return ctx._convert_fallback(x, strings)
+
+    def npconvert(ctx, x):
+        """
+        Converts *x* to an ``mpf`` or ``mpc``. *x* should be a numpy
+        scalar.
+        """
+        import numpy as np
+        if isinstance(x, np.integer): return ctx.make_mpf(from_int(int(x)))
+        if isinstance(x, np.floating): return ctx.make_mpf(from_npfloat(x))
+        if isinstance(x, np.complexfloating):
+            return ctx.make_mpc((from_npfloat(x.real), from_npfloat(x.imag)))
+        raise TypeError("cannot create mpf from " + repr(x))
 
     def isnan(ctx, x):
         """
@@ -827,7 +846,6 @@ class PythonMPContext:
         prec, rnd = ctx._prec_rounding
         real = []
         imag = []
-        other = 0
         for term in terms:
             reval = imval = 0
             if hasattr(term, "_mpf_"):
@@ -841,10 +859,7 @@ class PythonMPContext:
                 elif hasattr(term, "_mpc_"):
                     reval, imval = term._mpc_
                 else:
-                    if absolute: term = ctx.absmax(term)
-                    if squared: term = term**2
-                    other += term
-                    continue
+                    raise NotImplementedError
             if imval:
                 if squared:
                     if absolute:
@@ -870,10 +885,7 @@ class PythonMPContext:
             s = ctx.make_mpc((s, mpf_sum(imag, prec, rnd)))
         else:
             s = ctx.make_mpf(s)
-        if other is 0:
-            return s
-        else:
-            return s + other
+        return s
 
     def fdot(ctx, A, B=None, conjugate=False):
         r"""
@@ -914,12 +926,11 @@ class PythonMPContext:
             mpc(real='3.5', imag='-5.0')
 
         """
-        if B:
+        if B is not None:
             A = zip(A, B)
         prec, rnd = ctx._prec_rounding
         real = []
         imag = []
-        other = 0
         hasattr_ = hasattr
         types = (ctx.mpf, ctx.mpc)
         for a, b in A:
@@ -955,19 +966,13 @@ class PythonMPContext:
                 imag.append(mpf_mul(are, bim))
                 imag.append(mpf_mul(aim, bre))
             else:
-                if conjugate:
-                    other += a*ctx.conj(b)
-                else:
-                    other += a*b
+                raise NotImplementedError
         s = mpf_sum(real, prec, rnd)
         if imag:
             s = ctx.make_mpc((s, mpf_sum(imag, prec, rnd)))
         else:
             s = ctx.make_mpf(s)
-        if other is 0:
-            return s
-        else:
-            return s + other
+        return s
 
     def _wrap_libmp_function(ctx, mpf_f, mpc_f=None, mpi_f=None, doc="<no doc>"):
         """
@@ -1127,3 +1132,16 @@ class PythonMPContext:
             else:
                 raise TypeError("requires an mpf/mpc")
 
+
+# Register with "numbers" ABC
+#     We do not subclass, hence we do not use the @abstractmethod checks. While
+#     this is less invasive it may turn out that we do not actually support
+#     parts of the expected interfaces.  See
+#     http://docs.python.org/2/library/numbers.html for list of abstract
+#     methods.
+try:
+    import numbers
+    numbers.Complex.register(_mpc)
+    numbers.Real.register(_mpf)
+except ImportError:
+    pass

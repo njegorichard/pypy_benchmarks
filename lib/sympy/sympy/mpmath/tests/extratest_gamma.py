@@ -47,7 +47,7 @@ def check(name, func, z, y):
         if raise_:
             raise SystemExit
     if not err:
-        print("%s ok;" % name, end=' ')
+        sys.stdout.write("%s ok; " % name)
 
 def testcase(case):
     z, result = case
@@ -80,7 +80,7 @@ def testcase(case):
 testcases = []
 
 # Basic values
-for n in range(1,200) + range(201,2000,17):
+for n in list(range(1,200)) + list(range(201,2000,17)):
     testcases.append(["%s" % n, None])
 for n in range(-200,200):
     testcases.append(["%s+0.5" % n, None])

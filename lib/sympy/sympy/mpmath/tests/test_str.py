@@ -1,4 +1,4 @@
-from sympy.mpmath import nstr, matrix, inf
+from mpmath import nstr, matrix, inf
 
 def test_nstr():
     m = matrix([[0.75, 0.190940654, -0.0299195971],
@@ -12,4 +12,3 @@ def test_nstr():
     '''[    0.75  0.1909   -0.02992]
 [  0.1909  0.6563     0.2057]
 [-0.02992  0.2057  6.445e-21]'''
-

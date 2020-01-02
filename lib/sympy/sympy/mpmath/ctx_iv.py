@@ -17,7 +17,8 @@ from .libmp import (
     mpi_from_str,
     mpci_pos, mpci_neg, mpci_add, mpci_sub, mpci_mul, mpci_div, mpci_pow,
     mpci_abs, mpci_pow, mpci_exp, mpci_log,
-    ComplexResult)
+    ComplexResult,
+    mpf_hash, mpc_hash)
 
 mpi_zero = (fzero, fzero)
 
@@ -30,6 +31,7 @@ def convert_mpf_(x, prec, rounding):
     if isinstance(x, int_types): return from_int(x, prec, rounding)
     if isinstance(x, float): return from_float(x, prec, rounding)
     if isinstance(x, basestring): return from_str(x, prec, rounding)
+    raise NotImplementedError
 
 
 class ivmpf(object):
@@ -40,11 +42,27 @@ class ivmpf(object):
     def __new__(cls, x=0):
         return cls.ctx.convert(x)
 
-    def __int__(self):
+    def cast(self, cls, f_convert):
         a, b = self._mpi_
         if a == b:
-            return int(libmp.to_int(a))
+            return cls(f_convert(a))
         raise ValueError
+
+    def __int__(self):
+        return self.cast(int, libmp.to_int)
+
+    def __float__(self):
+        return self.cast(float, libmp.to_float)
+
+    def __complex__(self):
+        return self.cast(complex, libmp.to_float)
+
+    def __hash__(self):
+        a, b = self._mpi_
+        if a == b:
+            return mpf_hash(a)
+        else:
+            return hash(self._mpi_)
 
     @property
     def real(self): return self
@@ -137,6 +155,13 @@ class ivmpc(object):
         y = new(cls)
         y._mpci_ = re._mpi_, im._mpi_
         return y
+
+    def __hash__(self):
+        (a, b), (c,d) = self._mpci_
+        if a == b and c == d:
+            return mpc_hash((a, c))
+        else:
+            return hash(self._mpci_)
 
     def __repr__(s):
         if s.ctx.pretty:
@@ -507,3 +532,17 @@ class MPIntervalContext(StandardBaseContext):
             #    return s
             if k > maxterms:
                 raise ctx.NoConvergence
+
+
+# Register with "numbers" ABC
+#     We do not subclass, hence we do not use the @abstractmethod checks. While
+#     this is less invasive it may turn out that we do not actually support
+#     parts of the expected interfaces.  See
+#     http://docs.python.org/2/library/numbers.html for list of abstract
+#     methods.
+try:
+    import numbers
+    numbers.Complex.register(ivmpc)
+    numbers.Real.register(ivmpf)
+except ImportError:
+    pass

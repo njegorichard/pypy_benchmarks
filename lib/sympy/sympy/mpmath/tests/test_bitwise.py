@@ -2,8 +2,8 @@
 Test bit-level integer and mpf operations
 """
 
-from sympy.mpmath import *
-from sympy.mpmath.libmp import *
+from mpmath import *
+from mpmath.libmp import *
 
 def test_bitcount():
     assert bitcount(0) == 0
@@ -82,7 +82,7 @@ def test_rounding_bugs():
     assert from_man_exp(255, 0, 7, round_up) == (0, 1, 8, 1)
     assert from_man_exp(-255, 0, 7, round_floor) == (1, 1, 8, 1)
 
-def test_rounding_issue160():
+def test_rounding_issue_200():
     a = from_man_exp(9867,-100)
     b = from_man_exp(9867,-200)
     c = from_man_exp(-1,0)
@@ -170,3 +170,19 @@ def test_long_exponent_shifts():
         assert (d-x) == -x
         assert (e-x) == -x
         assert (f-x) == -x
+
+def test_float_rounding():
+    mp.prec = 64
+    for x in [mpf(1), mpf(1)+eps, mpf(1)-eps, -mpf(1)+eps, -mpf(1)-eps]:
+        fa = float(x)
+        fb = float(fadd(x,0,prec=53,rounding='n'))
+        assert fa == fb
+        z = mpc(x,x)
+        ca = complex(z)
+        cb = complex(fadd(z,0,prec=53,rounding='n'))
+        assert ca == cb
+        for rnd in ['n', 'd', 'u', 'f', 'c']:
+            fa = to_float(x._mpf_, rnd=rnd)
+            fb = to_float(fadd(x,0,prec=53,rounding=rnd)._mpf_, rnd=rnd)
+            assert fa == fb
+    mp.prec = 53
