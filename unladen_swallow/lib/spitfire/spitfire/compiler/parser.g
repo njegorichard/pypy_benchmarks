@@ -4,7 +4,7 @@ from spitfire.compiler.ast import *
 
 %%
 
-parser SpitfireParser:
+parser _SpitfireParser:
   token DOT: '\.'
   token NUM:   '[0-9]+'
   token ID:    '[A-Za-z_][0-9A-Za-z_]*'
@@ -14,7 +14,7 @@ parser SpitfireParser:
   token DOUBLE_QUOTE_STR: r'(?:[^"\\]|\\.)*'
 
   token SINGLE_LINE_COMMENT: '#.*?\n'
-  token MULTI_LINE_COMMENT: '\*[\W\w\S\s]+\*#'
+  token MULTI_LINE_COMMENT: '\*[\W\w\S\s]+?\*#'
   token ASSIGN_OPERATOR: '='
   # 'in' requires whitespace around it, but that is the only
   # such operator
@@ -30,7 +30,7 @@ parser SpitfireParser:
   # functions in text
   token CLOSE_PAREN: '[ \t]*\)'
   token OPEN_BRACKET: '[ \t]*\[[ \t]*'
-  token CLOSE_BRACKET: '[ \t]*\][ \t]*'
+  token CLOSE_BRACKET: '[ \t]*\]'
   token PLACEHOLDER_OPEN_BRACE: '\{[ \t]*'
   token PLACEHOLDER_CLOSE_BRACE: '[ \t]*\}'
   token OPEN_BRACE: '[ \t]*\{[ \t]*'
@@ -41,19 +41,35 @@ parser SpitfireParser:
   token COLON_DELIMITER: '[ \t]*:[ \t]*'
 
   token SPACE: '[ \t]+'
-  token CLOSE_DIRECTIVE_TOKEN: '[ \t]*[\n#]'
+  token CLOSE_DIRECTIVE_TOKEN: '[\n#]'
   token END_DIRECTIVE: '#end'
   token START_DIRECTIVE: '#'
   token START_PLACEHOLDER: '\$'
+  token LITERAL_DOLLAR_SIGN: '\\\\\$'
+  token LITERAL_BACKSLASH: '\\\\'
   token NEWLINE: '\n'
   token PYTHON_LINE: '.+'
-  token TEXT: '[^#\$\n]+'
+  #token TEXT: '[^#\$\n]+'
+  token TEXT: '[^\\\\#\$\n]+'
   token END:   '$'
 
   # don't allow directive inside i18n
   # fixme: need to allow an escape hatch in case you want a literal # in the
   # i18n message body
-  token I18N_BODY: '[^#]+'
+  rule i18n_body:
+    {{ value = '' }}
+    (
+      LITERAL_DOLLAR_SIGN {{ value += LITERAL_DOLLAR_SIGN }}
+      |
+      LITERAL_BACKSLASH {{ value += LITERAL_BACKSLASH }}
+      |
+      TEXT {{ value += TEXT }}
+      |
+      NEWLINE {{ value += NEWLINE }}
+      |
+      START_PLACEHOLDER {{ value += START_PLACEHOLDER }}
+    ) +
+    {{ return value }}
 
   # need to make close_directive a rule because sometimes optional trailing
   # whitespace may get slurped up as SPACE depending on how far things got
@@ -99,9 +115,9 @@ parser SpitfireParser:
         |
         'absolute_extends' SPACE modulename CLOSE_DIRECTIVE {{ return AbsoluteExtendsNode(modulename) }}
         |
-        'from' SPACE modulename SPACE 'import' SPACE identifier CLOSE_DIRECTIVE {{ return FromNode(modulename, identifier) }}
+        'from' SPACE modulename SPACE 'import' SPACE library_keyword identifier CLOSE_DIRECTIVE {{ return FromNode(modulename, identifier, library=library_keyword) }}
         |
-        'import' SPACE modulename CLOSE_DIRECTIVE {{ return ImportNode(modulename) }}
+        'import' SPACE library_keyword modulename CLOSE_DIRECTIVE {{ return ImportNode(modulename, library=library_keyword) }}
         |
         'slurp' CLOSE_DIRECTIVE {{ return CommentNode('slurp') }}
         |
@@ -109,24 +125,31 @@ parser SpitfireParser:
         |
         'continue' CLOSE_DIRECTIVE {{ return ContinueNode() }}
         |
+        'global' SPACE placeholder CLOSE_DIRECTIVE {{ return GlobalNode(placeholder.name) }}
+        |
         'attr' SPACE placeholder SPACE ASSIGN_OPERATOR SPACE literal CLOSE_DIRECTIVE
         {{ return AttributeNode(placeholder.name, literal) }}
         |
         'filter' SPACE identifier CLOSE_DIRECTIVE
-        {{ return AttributeNode('_filter_function', identifier) }}
+        {{ return FilterAttributeNode('_filter_function', identifier) }}
         |
         'set' SPACE placeholder {{ _lhs = IdentifierNode(placeholder.name) }}
         [ SPACE ] ASSIGN_OPERATOR [ SPACE ] expression {{ _rhs = expression }}
         CLOSE_DIRECTIVE {{ return AssignNode(_lhs, _rhs) }}
         |
         'echo' SPACE literal {{ _true_exp = literal }}
-         {{ _test_exp, _false_exp = None, None }}
-         [ SPACE 'if' SPACE expression {{ _test_exp = expression }}
-           [ SPACE 'else' SPACE literal {{ _false_exp = literal }}
-           ]
-         ]
-         CLOSE_DIRECTIVE {{ return EchoNode(_true_exp, _test_exp, _false_exp) }}
-        
+        {{ _test_exp, _false_exp = None, None }}
+        [ SPACE 'if' SPACE expression {{ _test_exp = expression }}
+          [ SPACE 'else' SPACE literal {{ _false_exp = literal }}
+          ]
+        ]
+        CLOSE_DIRECTIVE {{ return EchoNode(_true_exp, _test_exp, _false_exp) }}
+
+  rule library_keyword:
+    {{ _library = False }}
+    ['library' SPACE {{ _library = True }} ]
+    {{ return _library }}
+
   rule modulename:
     identifier {{ _module_name_list = [identifier] }}
     ( DOT identifier {{ _module_name_list.append(identifier) }} ) *
@@ -143,7 +166,7 @@ parser SpitfireParser:
         'block' SPACE ID CLOSE_DIRECTIVE {{ _block = BlockNode(ID) }}
         {{ start = CLOSE_DIRECTIVE.endswith('\n') }}
         ( block<<start>> {{ _block.append(block) }} ) *
-        {{ make_optional(_block.child_nodes) }}
+        {{ self.make_optional(_block.child_nodes, start) }}
         END_DIRECTIVE SPACE 'block' CLOSE_DIRECTIVE {{ _node_list.append(_block) }}
         |
         'i18n' {{ _macro = MacroNode('i18n') }}
@@ -155,7 +178,7 @@ parser SpitfireParser:
         {{ start = CLOSE_DIRECTIVE.endswith('\n') }}
         {{ _macro.value = '' }}
         (
-          I18N_BODY {{ _macro.value += I18N_BODY }}
+          i18n_body {{ _macro.value += i18n_body }}
           [ START_DIRECTIVE {{ _macro.value += START_DIRECTIVE }}
           ]
         )*
@@ -168,33 +191,45 @@ parser SpitfireParser:
         CLOSE_DIRECTIVE
         {{ start = CLOSE_DIRECTIVE.endswith('\n') }}
         ( block<<start>> {{ _def.append(block) }} ) *
-        {{ make_optional(_def.child_nodes) }}
+        {{ self.make_optional(_def.child_nodes, start) }}
         END_DIRECTIVE SPACE 'def' CLOSE_DIRECTIVE {{ _node_list.append(_def) }}
         |
         'for[ \t]*' target_list '[ \t]*in[ \t]*' expression_list CLOSE_DIRECTIVE
         {{ _for_loop = ForNode(target_list, expression_list) }}
         {{ start = CLOSE_DIRECTIVE.endswith('\n') }}
         ( block<<start>> {{ _for_loop.append(block) }} ) *
-        {{ make_optional(_for_loop.child_nodes) }}
+        {{ self.make_optional(_for_loop.child_nodes, start) }}
         END_DIRECTIVE SPACE 'for' CLOSE_DIRECTIVE {{ _node_list.append(_for_loop) }}
+        |
+        'strip_lines'
+        # Switch the close directive call to actively clean up whitespace
+        # on the following line while inside this condense directive
+        {{ self.strip_whitespace = True }}
+        CLOSE_DIRECTIVE
+        {{ _strip_lines_node = StripLinesNode() }}
+        {{ start = CLOSE_DIRECTIVE.endswith('\n') }}
+        ( block<<start>> {{ _strip_lines_node.append(block) }} ) *
+        {{ self.make_optional(_strip_lines_node.child_nodes, start) }}
+        {{ self.strip_whitespace = False }}
+        END_DIRECTIVE SPACE 'strip_lines' CLOSE_DIRECTIVE {{ _node_list.append(_strip_lines_node) }}
         |
         'if' SPACE expression CLOSE_DIRECTIVE {{ _if_node = IfNode(expression) }}
         {{ _last_condition_node = _if_node }}
         {{ start = CLOSE_DIRECTIVE.endswith('\n') }}
         ( block<<start>> {{ _if_node.append(block) }} ) *
-        {{ make_optional(_if_node.child_nodes) }}
+        {{ self.make_optional(_if_node.child_nodes, start) }}
         (
           '#elif' SPACE expression CLOSE_DIRECTIVE {{ _elif_node = IfNode(expression) }}
           {{ _last_condition_node.else_.append(_elif_node) }}
           {{ _last_condition_node = _elif_node }}
           {{ start = CLOSE_DIRECTIVE.endswith('\n') }}
           ( block<<start>> {{ _elif_node.append(block) }} ) *
+          {{ self.make_optional(_elif_node.child_nodes, start) }}
         ) *
-        {{ make_optional(_last_condition_node.child_nodes) }}
         [ '#else' CLOSE_DIRECTIVE
           {{ start = CLOSE_DIRECTIVE.endswith('\n') }}
           ( block<<start>> {{ _last_condition_node.else_.append(block) }} ) *
-          {{ make_optional(_last_condition_node.else_.child_nodes) }}
+          {{ self.make_optional(_last_condition_node.else_.child_nodes, start) }}
         ]
         END_DIRECTIVE SPACE 'if' CLOSE_DIRECTIVE {{ _node_list.append(_if_node) }}
         |
@@ -210,6 +245,10 @@ parser SpitfireParser:
   # optional. this is sort of a hack - but i can't quite figure out the right
   # way to describe this syntax
   rule block<<start=False>>:
+    LITERAL_DOLLAR_SIGN {{ return TextNode('$') }}
+    |
+    LITERAL_BACKSLASH {{ return TextNode('\\') }}
+    |
     directive {{ return directive }}
     |
     text {{ return text }}
@@ -250,6 +289,10 @@ parser SpitfireParser:
     {{ return _primary }}
     
   rule text_or_placeholders<<start=False>>:
+    LITERAL_DOLLAR_SIGN {{ return TextNode('$') }}
+    |
+    LITERAL_BACKSLASH {{ return TextNode('\\') }}
+    |
     ## in this context, a # is just a #
     START_DIRECTIVE {{ return TextNode(START_DIRECTIVE) }}
     |
@@ -532,3 +575,14 @@ parser SpitfireParser:
     a_expr {{ _left_side = a_expr }}
     ( COMP_OPERATOR a_expr {{ _left_side = BinOpExpressionNode(COMP_OPERATOR.strip(), _left_side, a_expr) }} ) *
     {{ return _left_side }}
+
+%%
+
+class SpitfireParser(_SpitfireParser):
+  strip_whitespace = False
+
+  def make_optional(self, node_list, starts_new_line=False):
+    if self.strip_whitespace:
+      return strip_whitespace(node_list, starts_new_line=starts_new_line)
+    else:
+      return make_optional(node_list)

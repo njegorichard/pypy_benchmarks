@@ -218,6 +218,8 @@ class CallFunctionNode(ASTNode):
   def __init__(self, expression=None, arg_list=None):
     ASTNode.__init__(self)
     self.expression = expression
+    # Whether we're calling into a library template.
+    self.library_function = False
     if arg_list:
       self.arg_list = arg_list
     else:
@@ -231,6 +233,7 @@ class CallFunctionNode(ASTNode):
 
   def __eq__(self, node):
     return bool(type(self) == type(node) and
+                self.library_function == node.library_function and
                 self.expression == node.expression and
                 self.arg_list == node.arg_list and
                 self.child_nodes == node.child_nodes)
@@ -392,6 +395,10 @@ class ForNode(ASTNode):
             (self.__class__.__name__, self.target_list, self.expression_list))
 
 
+class StripLinesNode(ASTNode):
+  """These are thrown away by the analyzer and do not make it to the codegen stage."""
+
+
 class FunctionNode(ASTNode):
   def __init__(self, *pargs, **kargs):
     ASTNode.__init__(self, *pargs, **kargs)
@@ -482,15 +489,17 @@ class ImplementsNode(ASTNode):
   pass
 
 class ImportNode(ASTNode):
-  def __init__(self, module_name_list):
+  def __init__(self, module_name_list, library=False):
     ASTNode.__init__(self)
     self.module_name_list = module_name_list
+    self.library = library
     # in case you have a different target, save a copy of the
     # orginal name to use for dependency analysis
     self.source_module_name_list = module_name_list[:]
 
   def __eq__(self, node):
     return bool(type(self) == type(node) and
+                self.library == node.library and
                 self.module_name_list == node.module_name_list)
 
   def __hash__(self):
@@ -509,8 +518,8 @@ class AbsoluteExtendsNode(ExtendsNode):
   pass
 
 class FromNode(ImportNode):
-  def __init__(self, module_name_list, identifier, alias=None):
-    ImportNode.__init__(self, module_name_list)
+  def __init__(self, module_name_list, identifier, alias=None, library=False):
+    ImportNode.__init__(self, module_name_list, library=library)
     self.identifier = identifier
     self.alias = alias
     
@@ -542,6 +551,10 @@ class LiteralNode(ASTNode):
     return '%s value:%r' % (self.__class__.__name__, self.value)
 
 
+class GlobalNode(ASTNode):
+  pass
+
+
 class ParameterNode(ASTNode):
   def __init__(self, name, default=None):
     ASTNode.__init__(self, name)
@@ -567,6 +580,9 @@ class ParameterNode(ASTNode):
                  hash(self.default)))
 
 class AttributeNode(ParameterNode):
+  pass
+
+class FilterAttributeNode(AttributeNode):
   pass
 
 
@@ -647,14 +663,14 @@ class TextNode(ASTNode):
       raise Exception('node type mismatch')
     self.value += node.value
 
-class NewlineNode(TextNode):
-  pass
-
 class WhitespaceNode(TextNode):
   def make_optional(self):
     return OptionalWhitespaceNode(self.value)
 
-class OptionalWhitespaceNode(TextNode):
+class NewlineNode(WhitespaceNode):
+  pass
+
+class OptionalWhitespaceNode(WhitespaceNode):
   pass
 
 class FragmentNode(ASTNode):
@@ -663,6 +679,7 @@ class FragmentNode(ASTNode):
 class TemplateNode(ASTNode):
   def __init__(self, classname=None, **kargs):
     ASTNode.__init__(self, **kargs)
+    self.source_path = None
     # fixme: need to get the classname from somewhere else
     self.classname = classname
     self.main_function = FunctionNode(name='main')
@@ -675,9 +692,11 @@ class TemplateNode(ASTNode):
     self.attr_nodes = NodeList()
     self.library = False
     self.implements = False
+    self.global_placeholders = set()
     self.global_identifiers = set()
     self.cached_identifiers = set()
     self.template_methods = set()
+    self.library_identifiers = set()
   
   def __str__(self):
     return '%s\nimport:%s\nfrom:%s\nextends:%s\nmain:%s' % (
@@ -702,6 +721,14 @@ class UnaryOpNode(ASTNode):
     else:
       raise Exception("expression does not match target")
 
+  def __eq__(self, node):
+    return bool(type(self) == type(node) and
+                self.name == node.name and
+                self.expression == node.expression)
+
+  def __hash__(self):
+    return hash('%s%s%s' %
+                (type(self), self.name, self.expression))
 
 # save state related to scoping rules for code blocks
 # this is kind of a hack. i am semi-emulating python scoping rules, which are
@@ -772,7 +799,7 @@ class OrderedDict(object):
 
 # this is sort of a hack to support optional white space nodes inside the
 # parse tree.  the reality is that this probably requires a more complex
-# parser, but we can get away with examining the node stake to fake it for now.
+# parser, but we can get away with faking it for now.
 def make_optional(node_list):
   try:
     if type(node_list[-1]) == WhitespaceNode:
@@ -783,6 +810,33 @@ def make_optional(node_list):
         node_list[-1] = OptionalWhitespaceNode(node_list[-1].value)
   except IndexError:
     pass
+
+# this is another hack to support line-wise stripping of white space nodes
+# inside a #strip_lines directive.
+def strip_whitespace(node_list, starts_new_line=True):
+  # starts as optional only if we're at the beginning of a new line.
+  optional = starts_new_line
+  for i, node in enumerate(node_list):
+    if isinstance(node, (OptionalWhitespaceNode, NewlineNode)):
+      optional = True
+      node_list[i] = OptionalWhitespaceNode('')
+    elif isinstance(node, WhitespaceNode):
+      if optional:
+        node_list[i] = OptionalWhitespaceNode('')
+      elif len(node_list) > i + 1 and isinstance(node_list[i+1], NewlineNode):
+        optional = True
+        node_list[i] = OptionalWhitespaceNode('')
+    elif isinstance(node, TextNode):
+      if optional:
+        node.value = node.value.lstrip()
+      optional = False
+    elif not (node.statement or node.child_nodes or isinstance(node, CommentNode)):
+      optional = False
+
+    if optional and i > 0:
+      prev_node = node_list[i - 1]
+      if isinstance(prev_node, TextNode):
+        prev_node.value = prev_node.value.rstrip()
 
 def unsigned_hash(x):
   exp_hash = hash(x)

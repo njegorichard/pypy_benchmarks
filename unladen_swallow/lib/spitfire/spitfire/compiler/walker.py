@@ -123,7 +123,7 @@ class TreeVisitor(object):
   def visitASTFunctionNode(self, node):
     self.visitDefault(node)
     if node.parameter_list:
-      self.walk(parameter_list)
+      self.walk(node.parameter_list)
 
     for n in node.child_nodes:
       self.walk(n)
@@ -134,6 +134,7 @@ class TreeVisitor(object):
     self.visitDefault(node)
     for n in node.child_nodes:
       self.walk(n)
+  visitASTStripLinesNode = visitASTFragmentNode
 
   def visitASTLiteralNode(self, node):
     self.visitDefault(node)

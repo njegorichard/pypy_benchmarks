@@ -22,10 +22,6 @@ from spitfire.compiler.visitor import print_tree
 from spitfire.compiler.util import Compiler
 
 
-# use this resolver so that we don't call resolve tester attributes twice
-# automatically
-spitfire.runtime.udn.resolve_udn = spitfire.runtime.udn.resolve_udn_prefer_attr
-
 # this class let's me check if placeholder caching is working properly by
 # tracking the number of accesses for a single key
 class ResolveCounter(object):
@@ -188,6 +184,9 @@ class TestRunner(object):
 
 
 if __name__ == '__main__':
+  reload(sys)
+  sys.setdefaultencoding('utf8')
+  
   from optparse import OptionParser
   op = OptionParser()
   spitfire.compiler.util.add_common_options(op)
@@ -203,8 +202,12 @@ if __name__ == '__main__':
                 default='hoisted_tree,source_code',
                 help='parse_tree, analyzed_tree, optimized_tree, hoisted_tree, source_code'
                 )
+  op.add_option('--enable-c-accelerator', action='store_true', default=False)
   (options, args) = op.parse_args()
   setattr(options, 'debug_flags', getattr(options, 'debug_flags').split(','))
+
+  spitfire.runtime.udn.set_accelerator(
+    options.enable_c_accelerator, enable_test_mode=True)
 
   compiler_args = Compiler.args_from_optparse(options)
   compiler = Compiler(**compiler_args)

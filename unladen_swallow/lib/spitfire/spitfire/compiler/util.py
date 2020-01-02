@@ -1,4 +1,5 @@
 import copy
+import gc
 import logging
 import new
 import os.path
@@ -21,7 +22,7 @@ valid_identfier = re.compile('[_a-z]\w*', re.IGNORECASE)
 
 def filename2classname(filename):
   classname = os.path.splitext(
-    os.path.basename(filename))[0].lower().replace('-', '_')
+    os.path.basename(filename))[0].replace('-', '_')
   if not valid_identfier.match(classname):
     raise SyntaxError(
       'filename "%s" must yield valid python identifier: %s' % (filename,
@@ -36,7 +37,9 @@ def parse(src_text, rule='goal'):
   return spitfire.compiler.parser.wrap_error_reporter(parser, rule)
 
 def parse_file(filename, xspt_mode=False):
-  return parse_template(read_template_file(filename), xspt_mode)
+  template_node = parse_template(read_template_file(filename), xspt_mode)
+  template_node.source_path = filename
+  return template_node
 
 def parse_template(src_text, xspt_mode=False):
   if xspt_mode:
@@ -53,18 +56,24 @@ def read_template_file(filename):
   finally:
     f.close()
 
-
 def read_function_registry(filename):
   f = open(filename)
+  lines = f.readlines()
+  f.close()
+  new_format = [ l for l in lines if not l.startswith('#') and l.find(',') > -1]
   function_registry = {}
-  try:
-    for line in f:
-      line = line.strip()
-      if not line:
-        continue
-      if line.startswith('#'):
-        continue
-      
+  for line in lines:
+    line = line.strip()
+    if not line:
+      continue
+    if line.startswith('#'):
+      continue
+    if new_format:
+      alias, rest = line.split('=')
+      decorators = rest.split(',')
+      fq_name = decorators.pop(0).strip()
+      function_registry[alias.strip()] = fq_name, decorators
+    else:
       alias, fq_name = line.split('=')
       fq_name = fq_name.strip()
       try:
@@ -72,12 +81,8 @@ def read_function_registry(filename):
       except ImportError:
         logging.warning('unable to import function registry symbol %s', fq_name)
         method = None
-                        
       function_registry[alias.strip()] = fq_name, method
-    return function_registry
-  finally:
-    f.close()
-    
+  return new_format, function_registry
     
 # compile a text file into a template object
 # this won't recursively import templates, it's just a convenience in the case
@@ -140,6 +145,8 @@ class Compiler(object):
     'optimizer_flags',
     'output_directory',
     'xspt_mode',
+    'include_path',
+    'tune_gc'
     ]
 
   @classmethod
@@ -170,8 +177,10 @@ class Compiler(object):
     self.message_catalogue_file = None
     self.extract_message_catalogue = False
     self.locale = None
-
+    self.include_path = '.'
     self.enable_filters = True
+    self.tune_gc = False
+    
     # the function registry is for optimized access to 'first-class' functions
     # things that get accessed all the time that should be speedy
     self.function_registry_file = None
@@ -206,7 +215,7 @@ class Compiler(object):
         logging.warning('unknown optimizer flag: %s', flag_name)
 
     if self.function_registry_file:
-      self.function_name_registry = read_function_registry(
+      self.new_registry_format, self.function_name_registry = read_function_registry(
         self.function_registry_file)
 
     # register macros before the first pass by any SemanticAnalyzer
@@ -259,9 +268,17 @@ class Compiler(object):
     self._source_code = None
     
   def compile_template(self, src_text, classname):
-    self._reset()
-    self._parse_tree = parse_template(src_text, self.xspt_mode)
-    return self._compile_ast(self._parse_tree, classname)
+    if self.tune_gc:
+      gc.disable()
+    try:
+      self._reset()
+      self._parse_tree = parse_template(src_text, self.xspt_mode)
+      return self._compile_ast(self._parse_tree, classname)
+    finally:
+      if self.tune_gc:
+        self._reset()
+        gc.enable()
+        gc.collect()
 
   def compile_file(self, filename):
     self.src_filename = filename
@@ -336,6 +353,11 @@ def add_common_options(op):
                 type="str", nargs=1,
                 help='alternate directory to store compiled templates')
 
+  op.add_option('--include-path', default='.',
+                action="callback", callback=validate_path,
+                type="str", nargs=1,
+                help='path to the templates hierarchy, where included files live. default: .')
+  
   op.add_option('--base-extends-package', default=None)
   op.add_option('--extract-message-catalogue', action='store_true',
                 default=False)
@@ -350,4 +372,5 @@ def add_common_options(op):
                 help='file to use as the function registry')
   op.add_option('-X', dest='optimizer_flags', action='append', default=[],
                 help=analyzer.AnalyzerOptions.get_help())
+  op.add_option('--tune-gc', action='store_true')
   

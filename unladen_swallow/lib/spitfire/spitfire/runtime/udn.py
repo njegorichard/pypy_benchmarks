@@ -6,6 +6,11 @@
 
 import __builtin__
 import inspect
+import logging
+
+from spitfire.runtime import (
+  PlaceholderError, UDNResolveError, UnresolvedPlaceholder, 
+  UndefinedPlaceholder, UndefinedAttribute)
 
 # create a sentinel value for missing attributes
 class __MissingAttr(object):
@@ -16,30 +21,6 @@ MissingAttr = __MissingAttr()
 class __Unspecified(object):
   pass
 Unspecified = __Unspecified()
-
-# the idea is to have something that is always like None, but explodes when
-# you try to use it as a string. this means that you can resolve placeholders
-# and evaluate them in complex conditional expressions, allowing them to be
-# hoisted, and still protect conditional access to the values
-# it could also be that you might try to call the result - in that case, blow
-# and exception as well.
-class UndefinedPlaceholder(object):
-  def __init__(self, name, available_placeholders):
-    self.name = name
-    self.available_placeholders = available_placeholders
-
-  def __nonzero__(self):
-    return False
-
-  def __str__(self):
-    raise PlaceholderError(self.name, self.available_placeholders)
-
-  def __call__(self, *pargs, **kargs):
-    raise PlaceholderError(self.name, self.available_placeholders)
-
-class __UnresolvedPlaceholder(object):
-  pass
-UnresolvedPlaceholder = __UnresolvedPlaceholder()
 
 # Cheetah supports autocalling - Spitfire does not. this stand-in class will
 # raise an exception if you do something like compare a function object.
@@ -65,60 +46,69 @@ class CallOnlyPlaceholder(object):
   def __nonzero__(self):
     raise PlaceholderError(self.name, 'function placeholder was not called')
 
-class PlaceholderError(KeyError):
-  pass
-
-class UDNResolveError(Exception):
-  pass
-
 
 # TODO - optimize performance
-def resolve_udn_prefer_attr(_object, name):
+def resolve_udn_prefer_attr(_object, name, raise_exception=False):
   try:
     return getattr(_object, name)
   except AttributeError:
     try:
       return _object[name]
     except (KeyError, TypeError):
-      raise UDNResolveError(name, dir(_object))
+      if raise_exception:
+        raise UDNResolveError(name, dir(_object))
+      else:
+        return UndefinedAttribute(name, dir(_object))
 
-def resolve_udn_prefer_dict(_object, name):
+def resolve_udn_prefer_dict(_object, name, raise_exception=False):
   try:
     return _object[name]
   except (KeyError, TypeError):
     try:
       return getattr(_object, name)
     except AttributeError:
-      raise UDNResolveError(name, dir(_object))
+      if raise_exception:
+        raise UDNResolveError(name, dir(_object))
+      else:
+        return UndefinedAttribute(name, dir(_object))
 
 # this is always faster than catching an exception when that exception isn't
 # truly exceptional,  but semi-expected
 # using a sentinel should be quicker than calling hasattr then getattr
 # this is true when the expected hit rate on an attribute is relatively
 # reasonable - say 50% chance
-def resolve_udn_prefer_attr2(_object, name):
+def resolve_udn_prefer_attr2(_object, name, raise_exception=False):
   val = getattr(_object, name, MissingAttr)
   if val is not MissingAttr:
     return val
   try:
     return _object[name]
   except (KeyError, TypeError):
-    raise UDNResolveError(name, dir(_object))
+    if raise_exception:
+      raise UDNResolveError(name, dir(_object))
+    else:
+      return UndefinedAttribute(name, dir(_object))
 
 # this version is slightly faster when there are a lot of misses on attributes
-def resolve_udn_prefer_attr3(_object, name):
+def resolve_udn_prefer_attr3(_object, name, raise_exception=False):
   if hasattr(_object, name):
     return getattr(_object, name)
   try:
     return _object[name]
   except (KeyError, TypeError):
-    raise UDNResolveError(name, dir(_object))
+    if raise_exception:
+      raise UDNResolveError(name, dir(_object))
+    else:
+      return UndefinedAttribute(name, dir(_object))
+
+_resolve_udn = resolve_udn_prefer_attr3
+
 
 # FIXME: i'm sure this is a little pokey - might be able to speed this up
 # somehow. not sure if it's better to look before leaping or raise.
 # might also want to let users tune whether to prefer keys or attributes
-def _resolve_placeholder(name, template=None, local_vars=None, global_vars=None,
-                        default=Unspecified):
+def _resolve_placeholder(name, template=None, local_vars=None,
+                         global_vars=None, default=Unspecified):
   if local_vars is not None:
     try:
       return local_vars[name]
@@ -135,7 +125,7 @@ def _resolve_placeholder(name, template=None, local_vars=None, global_vars=None,
       pass
 
   if template.search_list is not None:
-    ph = get_var_from_search_list(name, template.search_list)
+    ph = _resolve_from_search_list(template.search_list, name)
     if ph is not UnresolvedPlaceholder:
       return ph
 
@@ -158,9 +148,25 @@ def _resolve_placeholder(name, template=None, local_vars=None, global_vars=None,
     return UndefinedPlaceholder(name,
                                 [get_available_placeholders(scope)
                                  for scope in template.search_list])
-#     raise PlaceholderError(name,
-#                            [get_available_placeholders(scope)
-#                             for scope in template.search_list])
+
+
+def _resolve_placeholder_2(name, template=None, local_vars=None,
+                           global_vars=None, default=Unspecified):
+  """A slightly different version of resolve_placeholder that relies mostly on
+  the accelerated C resolving stuff.
+  """
+  search_list = [local_vars, template]
+  search_list += template.search_list
+  search_list += (global_vars, __builtin__)
+  return_value = _resolve_from_search_list(search_list, name, default)
+  if return_value is not Unspecified:
+    return return_value
+  else:
+    return UndefinedPlaceholder(name,
+                                [get_available_placeholders(scope)
+                                 for scope in search_list])
+
+resolve_placeholder = _resolve_placeholder
 
 
 def _debug_resolve_placeholder(name, *pargs, **kargs):
@@ -177,21 +183,50 @@ def _debug_resolve_udn(_object, name, *pargs, **kargs):
   else:
     return placeholder
 
-resolve_placeholder = _resolve_placeholder
 
-def get_var_from_search_list(name, search_list):
-  for scope in search_list:
-    try:
-      return scope[name]
-    except (TypeError, KeyError):
-      pass
+def _resolve_from_search_list(search_list, name, default=Unspecified):
+  try:
+    for scope in search_list:
+      try:
+        return scope[name]
+      except (TypeError, KeyError):
+        pass
 
-    try:
-      return getattr(scope, name)
-    except AttributeError:
-      pass
-  return UnresolvedPlaceholder
+      try:
+        return getattr(scope, name)
+      except AttributeError:
+        pass
+  except TypeError:
+    # if this isn't iterable, let's just return UndefinedPlaceholder
+    pass
+  
+  if default != Unspecified:
+    return default
+  else:
+    return UnresolvedPlaceholder
 
+
+def _resolve_from_search_list_2(search_list, name, default=Unspecified):
+  """Models the C function more precisely. However, due to common access
+  patterns, it's probably better to prefer dictionaries when resolving from
+  a search list. That's just a lot more likely scenario."""
+  try:
+    for scope in search_list:
+      if hasattr(scope, name):
+        return getattr(scope, name)
+      try:
+        return scope[name]
+      except (KeyError, TypeError):
+        pass
+  except TypeError:
+    # if this isn't iterable, let's just return UndefinedPlaceholder
+    pass
+  
+  if default != Unspecified:
+    return default
+  else:
+    return UnresolvedPlaceholder
+  
 
 def get_available_placeholders(scope):
   if isinstance(scope, dict):
@@ -200,4 +235,46 @@ def get_available_placeholders(scope):
     return dir(scope)
 
 
-resolve_udn = resolve_udn_prefer_attr3
+# apply some acceleration if this c module is available
+try:
+  from spitfire.runtime import _udn
+  _c_resolve_from_search_list = _udn._resolve_from_search_list
+  _c_resolve_udn = _udn._resolve_udn
+except ImportError, e:
+  _udn = None
+
+
+_python_resolve_from_search_list = _resolve_from_search_list
+_python_resolve_udn = _resolve_udn
+resolve_udn = _resolve_udn
+
+def set_accelerator(enabled=True, enable_test_mode=False):
+  """Some key functions are much faster in C.
+  They can subtlely change how data is accessed with can cause false-positive
+  errors in certain test cases, so we want to be able to toggle it on/off.
+  """
+  global _resolve_from_search_list
+  global _resolve_udn
+  global resolve_udn
+
+  if enabled and _udn:
+    _resolve_from_search_list = _c_resolve_from_search_list
+    _resolve_udn = _c_resolve_udn
+  else:
+    _resolve_from_search_list = _python_resolve_from_search_list
+    if enable_test_mode:
+      # use this resolver so that we don't call resolve tester attributes twice
+      # automatically - this screws up testing hoisting and other things that
+      # are designed to limit calls to resolve_placeholder
+      _resolve_udn = resolve_udn_prefer_attr
+    else:
+      _resolve_udn = _python_resolve_udn
+
+  resolve_udn = _resolve_udn
+
+  if enabled and _udn is None:
+    logging.warning('unable to enable acceleration, _udn module not loaded')
+
+
+# give it our best shot
+set_accelerator()

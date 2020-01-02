@@ -27,8 +27,11 @@ class VisitNode(object):
   def __repr__(self):
     return '%s:%s' % (self.__class__.__name__, self.node_repr)
 
+def flatten_tree(root):
+  return TreeVisitor(root).get_text()
+
 def print_tree(root):
-  print TreeVisitor(root).get_text()
+  print flatten_tree(root)
     
 # perform an in-order traversal of the AST and call the generate methods
 # in this case, we are generating python source code that should be somewhat
@@ -114,6 +117,11 @@ class TreeVisitor(object):
     v.append(VisitNode('expression', self.build_text(node.expression)))
     if node.arg_list:
       v.extend(self.build_text(node.arg_list))
+    return [v]
+
+  def visitASTCacheNode(self, node):
+    v = self.visitDefault(node)[0]
+    v.append(VisitNode('expression', self.build_text(node.expression)))
     return [v]
 
   def visitASTForNode(self, node):
@@ -250,6 +258,8 @@ class TreeVisitor(object):
       v.extend(self.build_text(n))
       
     return [v]
+
+  visitASTStripLinesNode = visitASTFragmentNode
 
   def visitASTLiteralNode(self, node):
     return [VisitNode("%s '%r'" % (node.__class__.__name__, node.value))]
