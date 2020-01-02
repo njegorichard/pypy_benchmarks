@@ -162,42 +162,43 @@ def test_parse_timer():
         ('database', 0.4)
         ]
 
-def BM_translate(base_python, changed_python, options):
-    """
-    Run translate.py and returns a benchmark result for each of the phases.
-    Note that we run it only with ``base_python`` (which corresponds to
-    pypy-c-jit in the nightly benchmarks, we are not interested in
-    ``changed_python`` (aka pypy-c-nojit) right now.
-    """
-    translate_py = relative('lib/pypy/rpython/bin/rpython')
-    target = relative('lib/pypy/pypy/goal/targetpypystandalone.py')
-    #targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
-    args = base_python + [translate_py, '--source', '--dont-write-c-files', '-O2', target]
-    logging.info('Running %s', ' '.join(args))
-    environ = os.environ.copy()
-    environ['PYTHONPATH'] = relative('lib/pypy')
-    proc = subprocess.Popen(args, stderr=subprocess.PIPE,
-                            stdout=subprocess.PIPE, env=environ)
-    out, err = proc.communicate()
-    retcode = proc.poll()
-    if retcode != 0:
-        if out is not None:
-            print('---------- stdout ----------')
-            print(out)
-        if err is not None:
-            print('---------- stderr ----------')
-            print(err)
-        raise Exception("translate.py failed, retcode %r" % (retcode,))
+if sys.version_info[0] < 3:
+    def BM_translate(base_python, changed_python, options):
+        """
+        Run translate.py and returns a benchmark result for each of the phases.
+        Note that we run it only with ``base_python`` (which corresponds to
+        pypy-c-jit in the nightly benchmarks, we are not interested in
+        ``changed_python`` (aka pypy-c-nojit) right now.
+        """
+        translate_py = relative('lib/pypy/rpython/bin/rpython')
+        target = relative('lib/pypy/pypy/goal/targetpypystandalone.py')
+        #targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')
+        args = base_python + [translate_py, '--source', '--dont-write-c-files', '-O2', target]
+        logging.info('Running %s', ' '.join(args))
+        environ = os.environ.copy()
+        environ['PYTHONPATH'] = relative('lib/pypy')
+        proc = subprocess.Popen(args, stderr=subprocess.PIPE,
+                                stdout=subprocess.PIPE, env=environ)
+        out, err = proc.communicate()
+        retcode = proc.poll()
+        if retcode != 0:
+            if out is not None:
+                print('---------- stdout ----------')
+                print(out)
+            if err is not None:
+                print('---------- stderr ----------')
+                print(err)
+            raise Exception("translate.py failed, retcode %r" % (retcode,))
 
-    lines = err.splitlines()
-    timings = parse_timer(lines)
+        lines = err.splitlines()
+        timings = parse_timer(lines)
 
-    result = []
-    for name, time in timings:
-        data = RawResult([time], None)
-        result.append((name, data))
-    return result
-BM_translate.benchmark_name = 'trans2'
+        result = []
+        for name, time in timings:
+            data = RawResult([time], None)
+            result.append((name, data))
+        return result
+    BM_translate.benchmark_name = 'trans2'
 
 def BM_cpython_doc(base_python, changed_python, options):
     from unladen_swallow.perf import RawResult
