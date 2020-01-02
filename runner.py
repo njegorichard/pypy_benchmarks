@@ -13,7 +13,8 @@ from saveresults import save
 from unladen_swallow import perf
 
 BENCHMARK_SET = ['richards', 'slowspitfire', 'django', 'spambayes',
-                 'rietveld', 'html5lib', 'ai']
+                 # 'rietveld', too hard to adapt to django 0.19.13
+                 'html5lib', 'ai']
 BENCHMARK_SET += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
 
 CHANGED = 'changed'
