@@ -1,7 +1,7 @@
 import copy
 import gc
 import logging
-import new
+import types
 import os.path
 import re
 import sys
@@ -93,7 +93,7 @@ def load_template_file(filename, module_name=None,
                        compiler_options=None):
   c = Compiler(analyzer_options=options, xspt_mode=xspt_mode)
   if compiler_options:
-    for k, v in compiler_options.iteritems():
+    for k, v in compiler_options.items():
       setattr(c, k, v)
   class_name = filename2classname(filename)
   if not module_name:
@@ -111,7 +111,7 @@ def load_template(template_src, template_name,
   module_name = class_name
   c = Compiler(analyzer_options=options)
   if compiler_options:
-    for k, v in compiler_options.iteritems():
+    for k, v in compiler_options.items():
       setattr(c, k, v)
   src_code = c.compile_template(template_src, class_name)
   module = load_module_from_src(src_code, filename, module_name)
@@ -120,11 +120,11 @@ def load_template(template_src, template_name,
 
 # a helper method to import a template without having to save it to disk
 def load_module_from_src(src_code, filename, module_name):
-  module = new.module(module_name)
+  module = types.ModuleType(module_name)
   sys.modules[module_name] = module
 
   bytecode = compile(src_code, filename, 'exec')
-  exec bytecode in module.__dict__
+  exec(bytecode, module.__dict__)
   return module
 
 class CompilerError(Exception):
@@ -193,7 +193,7 @@ class Compiler(object):
     self._hoisted_tree = None
     self._source_code = None
 
-    for key, value in kargs.iteritems():
+    for key, value in kargs.items():
       setattr(self, key, value)
     
     if self.analyzer_options is None:

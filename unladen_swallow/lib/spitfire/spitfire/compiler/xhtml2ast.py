@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import traceback
 import xml.dom.minidom
 
@@ -10,9 +12,9 @@ def debug(func_name, dom_node):
   if not enable_debug:
     return
   if dom_node.attributes:
-    print func_name, dom_node.nodeName, dom_node.attributes.keys()
+    print(func_name, dom_node.nodeName, dom_node.attributes.keys())
   else:
-    print func_name, dom_node.nodeName
+    print(func_name, dom_node.nodeName)
   
 class XHTML2AST(object):
   namespace = 'py'
@@ -70,7 +72,7 @@ class XHTML2AST(object):
         if dom_node.hasAttribute(op_attr_name): # in attr_name_list:
           op_handler = 'handle_%s' % op
           op_handler = op_handler.replace('-', '_')
-          # print "op_handler:", op_handler, dom_node.nodeName, dom_node.attributes.keys(), processed_any_op
+          # print("op_handler:", op_handler, dom_node.nodeName, dom_node.attributes.keys(), processed_any_op)
 
           node_list.extend(getattr(self, op_handler)(dom_node, op_attr_name))
           processed_any_op = True
@@ -86,13 +88,13 @@ class XHTML2AST(object):
           attr_prune_list.append('%s:%s' % (self.attr_op_namespace,
                                             attr.localName))
           attr_output_ast.extend(self.make_attr_node(attr))
-          # print "attr_handler:", attr.prefix, attr.localName
+          # print("attr_handler:", attr.prefix, attr.localName)
           #processed_any_op = True
       for attr_name in attr_prune_list:
         try:
           dom_node.removeAttribute(attr_name)
         except xml.dom.NotFoundErr:
-          print "ignoring missing", attr_name
+          print("ignoring missing", attr_name)
 
       if not processed_any_op:
         node_list.extend(self.handle_default(dom_node,
@@ -162,7 +164,7 @@ class XHTML2AST(object):
       else:
         if attr_text:
           if attr_ast:
-            # print "XXX make_tag_node", dom_node.nodeName, attr_ast
+            # print("XXX make_tag_node", dom_node.nodeName, attr_ast)
             node_list.append(TextNode(u'<%(node_name)s %(attr_text)s' % vars()))
             node_list.extend(attr_ast)
             node_list.append(TextNode(u' />'))
@@ -201,7 +203,7 @@ class XHTML2AST(object):
   def handle_define(self, dom_node, attr_name):
     node_list = []
     node_name = dom_node.nodeName
-    # print "handle_define", node_name
+    # print("handle_define", node_name)
     # fixme: this is a nasty temp hack, it will generate the correct code
     # for 1 define, but multiple expressions won't work
     ast = spitfire.compiler.util.parse(dom_node.getAttribute(attr_name),
@@ -286,7 +288,7 @@ class XHTML2AST(object):
       #for n in dom_node.childNodes:
       #  fn.extend(self.build_ast(n))
     else:
-      # print "no children"
+      # print("no children")
       fn.extend(self.build_ast(dom_node))
 
     if (dom_node.previousSibling and
@@ -298,10 +300,10 @@ class XHTML2AST(object):
       fn.prepend(self.build_ast(dom_node.previousSibling))
 
       # now remove the previous sibling
-      #print "node", dom_node
-      #print "parent", dom_node.parentNode
-      #print "previous", dom_node.previousSibling, id(dom_node.previousSibling)
-      #print "next", dom_node.nextSibling, id(dom_node.nextSibling)
+      #print("node", dom_node)
+      #print("parent", dom_node.parentNode)
+      #print("previous", dom_node.previousSibling, id(dom_node.previousSibling))
+      #print("next", dom_node.nextSibling, id(dom_node.nextSibling))
       #dom_node.parentNode.removeChild(dom_node.previousSibling)
       node_list.append(EatPrevious())
         
@@ -336,10 +338,10 @@ if __name__ == '__main__':
   x2a = XHTML2AST()
   filename = sys.argv[1]
   tnode = x2a.build_template(filename)
-  print tnode
+  print(tnode)
   classname = spitfire.compiler.util.filename2classname(filename)
   src = spitfire.compiler.util.compile_ast(tnode, classname)
-  print src
+  print(src)
   module = spitfire.compiler.util.load_module_from_src(src, '<none>', classname)
   tclass = getattr(module, classname)
   d = {
@@ -357,4 +359,4 @@ if __name__ == '__main__':
     'content_type': 'test/spitfire',
     }
 
-  print tclass(search_list=[d]).main()
+  print(tclass(search_list=[d]).main())

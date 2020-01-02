@@ -17,6 +17,8 @@ import gc
 import optparse
 import sys
 import time
+if sys.version_info[0] > 2:
+    xrange = range
 
 # Local imports
 import util

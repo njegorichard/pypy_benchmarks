@@ -1,6 +1,9 @@
+from __future__ import division, print_function
 import sys
-
-import cStringIO as StringIO
+if sys.version_info[0] < 3:
+    import cStringIO as io
+else:
+    import io
 
 from spitfire.compiler import analyzer
 from spitfire.compiler.ast import *
@@ -29,10 +32,10 @@ def make_placeholder_name(placeholder_node):
 def make_i18n_message(raw_msg, macro_ast):
   # top should be a fragment and due to the limited syntax, we can more or
   # less scan this one level of nodes -- there are no nested i18n sections yet
-  output = StringIO.StringIO()
+  output = io.StringIO()
   for i, n in enumerate(macro_ast.child_nodes):
-    #print i, type(n), "start", n.start, "end", n.end
-    #print "raw:", "'%s'" % raw_msg[n.start:n.end]
+    #print(i, type(n), "start", n.start, "end", n.end)
+    #print("raw:", "'%s'" % raw_msg[n.start:n.end])
     
     if isinstance(n, PlaceholderSubstitutionNode):
       raw_placeholder_expression = raw_msg[n.start:n.end]
@@ -53,9 +56,9 @@ def macro_i18n(macro_node, arg_map, compiler):
                                                    'i18n_goal')
   i18n_msg = make_i18n_message(macro_node.value, macro_content_ast)
   i18n_msg_utf8 = i18n_msg.encode(sys.getdefaultencoding())
-  #print "macro_content_ast"
-  #print "orginal:", macro_node.value
-  #print "i18n:", i18n_msg_utf8
+  #print("macro_content_ast")
+  #print("orginal:", macro_node.value)
+  #print("i18n:", i18n_msg_utf8)
   #print_tree(macro_content_ast)
   return i18n_msg
 

@@ -172,7 +172,7 @@ class SemanticAnalyzer(object):
     try:
       if len(ast_node_list) != 1:
         return ast_node_list
-    except TypeError, e:
+    except TypeError as e:
       raise SemanticAnalyzerError('method: %s, result: %s' % (
         method, ast_node_list))
 
@@ -415,7 +415,7 @@ class SemanticAnalyzer(object):
       elif isinstance(pnode, CallFunctionNode):
         fragment_ast = spitfire.compiler.util.parse(
           macro_output, 'rhs_expression')
-    except Exception, e:
+    except Exception as e:
       raise MacroParseError(e)
     return self.build_ast(fragment_ast)
 

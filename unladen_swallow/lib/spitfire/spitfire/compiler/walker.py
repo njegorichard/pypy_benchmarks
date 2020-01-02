@@ -1,9 +1,11 @@
+from __future__ import division, print_function
+
 class TreeWalkError(Exception):
   pass
 
 
 def print_tree(root):
-  print TreeVisitor(root).get_text()
+  print(TreeVisitor(root).get_text())
     
 # perform an in-order traversal of the AST and call the generate methods
 class TreeVisitor(object):

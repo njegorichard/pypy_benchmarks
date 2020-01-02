@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import copy
 import traceback
 
@@ -49,8 +51,8 @@ class ASTNode(object):
       else:
         try:
           node.parent = self
-        except AttributeError, e:
-          print e, node
+        except AttributeError as e:
+          print(e, node)
           raise
         self.child_nodes.append(node)
 
@@ -71,7 +73,7 @@ class ASTNode(object):
       idx = self.child_nodes.index(marker_node)
     except ValueError:
       raise ValueError("can't find child node %s in %s" % (marker_node, self))
-    # print "insert_before", idx, id(self), self, id(marker_node), marker_node
+    # print("insert_before", idx, id(self), self, id(marker_node), marker_node)
     insert_node.parent = self
     self.child_nodes.insert(idx, insert_node)
 

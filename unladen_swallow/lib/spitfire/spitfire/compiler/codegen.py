@@ -1,5 +1,9 @@
-import cStringIO as StringIO
 import logging
+import sys
+if sys.version_info[0] < 3:
+    import cStringIO as io
+else:
+    import io
 
 
 # yes, i know this is evil
@@ -41,7 +45,7 @@ class CodeGenerator(object):
   def __init__(self, ast_root, options=None):
     self.ast_root = ast_root
     self.options = options
-    self.output = StringIO.StringIO()
+    self.output = io.StringIO()
     
 
   def get_code(self):
@@ -52,7 +56,7 @@ class CodeGenerator(object):
   def generate_python(self, code_node):
     try:
       return code_node.src_line
-    except AttributeError, e:
+    except AttributeError as e:
       raise CodegenError(
         "can't write code_node: %s\n\t%s" % (code_node, e))
     
@@ -483,7 +487,7 @@ class CodeGenerator(object):
     try:
       return [CodeNode(line % vars(node))
               for line in v['AST%s_tmpl' % node.__class__.__name__]]
-    except KeyError, e:
+    except KeyError as e:
       raise CodegenError("no codegen for %s %s" % (type(node), vars(node)))
   def codegen(self, node):
     return self.codegenDefault(node)[0]

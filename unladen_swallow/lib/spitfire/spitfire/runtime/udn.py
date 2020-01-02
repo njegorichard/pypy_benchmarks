@@ -4,7 +4,12 @@
 # syntactically, 'name' will always be a valid identifier - so you won't get
 # name='my attribute' - it must be a legal python identifier
 
-import __builtin__
+import sys
+if sys.version_info[0] < 3:
+    import __builtin__ as builtins
+else:
+    import builtins
+
 import inspect
 import logging
 
@@ -240,7 +245,7 @@ try:
   from spitfire.runtime import _udn
   _c_resolve_from_search_list = _udn._resolve_from_search_list
   _c_resolve_udn = _udn._resolve_udn
-except ImportError, e:
+except ImportError as e:
   _udn = None
 
 
