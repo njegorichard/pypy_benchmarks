@@ -2,6 +2,10 @@ import sys, os
 import time
 import util, optparse
 
+if sys.version_info[0] > 2:
+    print('cannot run pypy_interp on Python3')
+    sys.exit(42)
+
 pardir = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 pypypath = os.path.join(pardir, 'lib', 'pypy')
 sys.path.insert(0, pypypath)

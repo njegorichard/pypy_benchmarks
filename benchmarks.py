@@ -170,6 +170,10 @@ if sys.version_info[0] < 3:
         pypy-c-jit in the nightly benchmarks, we are not interested in
         ``changed_python`` (aka pypy-c-nojit) right now.
         """
+        if sys.version_info[0] > 2:
+            print('cannot run translation on Python3')
+            sys.exit(42)
+
         translate_py = relative('lib/pypy/rpython/bin/rpython')
         target = relative('lib/pypy/pypy/goal/targetpypystandalone.py')
         #targetnop = relative('lib/pypy/pypy/translator/goal/targetnopstandalone.py')

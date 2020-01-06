@@ -674,6 +674,8 @@ def CompareMultipleRuns(base_times, changed_times, options):
         A string summarizing the difference between the runs, suitable for
         human consumption.
     """
+    if options.no_statistics or len(base_times) ==0 or len(changed_times) == 0:
+        return RawResult(base_times, changed_times)
     if len(base_times) != len(changed_times):
         print("Base:")
         print(base_times)
@@ -684,8 +686,6 @@ def CompareMultipleRuns(base_times, changed_times, options):
         l = min(len(base_times), len(changed_times))
         base_times = base_times[:l]
         changed_times = changed_times[:l]
-    if options.no_statistics:
-        return RawResult(base_times, changed_times)
     if len(base_times) == 1:
         # With only one data point, we can't do any of the interesting stats
         # below.
@@ -772,8 +772,10 @@ def CallAndCaptureOutput(command, env=None, track_memory=False, inherit_env=[]):
     if track_memory:
         future = MemoryUsageFuture(subproc.pid)
     result, err = subproc.communicate()
-    if subproc.returncode != 0:
-        print(result)
+    if subproc.returncode == 42:
+        assert 'Python3' in result
+        return '', None
+    elif subproc.returncode != 0:
         raise RuntimeError("Benchmark died (returncode: %d): %s" %
                            (subproc.returncode, err))
     if track_memory:
