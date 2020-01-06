@@ -16,7 +16,6 @@ import threading
 from os import path
 
 from docutils import nodes
-from requests.exceptions import HTTPError
 from six.moves import queue, html_parser
 from six.moves.urllib.parse import unquote
 
@@ -32,11 +31,10 @@ except ImportError:
 
 from sphinx.builders import Builder
 from sphinx.locale import __
-from sphinx.util import encode_uri, requests, logging
+from sphinx.util import logging
 from sphinx.util.console import (  # type: ignore
     purple, red, darkgreen, darkgray, darkred, turquoise
 )
-from sphinx.util.requests import is_ssl_error
 
 if False:
     # For type annotation
@@ -120,6 +118,9 @@ class CheckExternalLinksBuilder(Builder):
 
     def check_thread(self):
         # type: () -> None
+        from requests.exceptions import HTTPError
+        from sphinx.util.requests import is_ssl_error
+        from sphinx.util import encode_uri, requests, logging
         kwargs = {
             'allow_redirects': True,
             'headers': {
