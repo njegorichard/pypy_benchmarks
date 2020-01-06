@@ -62,7 +62,6 @@ def main(n):
             vBv += ue * ve
             vv  += ve * ve
         tk = time.time()
-        print(vBv, vv)
         times.append(tk - t0)
     return times
     

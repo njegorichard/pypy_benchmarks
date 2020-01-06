@@ -17,9 +17,17 @@
 from textwrap import dedent
 from types import CodeType
 import sys
+import platform
 if sys.version_info[0] > 2:
     basestring = str
     unicode = str
+
+if platform.python_implementation() == 'PyPy':
+    def get_builtin(name, val):
+        return getattr(__builtins__, name, val)
+else:
+    def get_builtin(name, val):
+        return __builtins__.get(name, val)
 
 from genshi.core import Markup
 from genshi.template.astutil import ASTTransformer, ASTCodeGenerator, \
@@ -308,7 +316,7 @@ class LookupBase(object):
         __traceback_hide__ = True
         val = data.get(name, UNDEFINED)
         if val is UNDEFINED:
-            val = __builtins__.get(name, val)
+            val = get_builtin(name, val)
             if val is UNDEFINED:
                 val = cls.undefined(name)
         return val

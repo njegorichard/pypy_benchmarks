@@ -3,7 +3,7 @@
 """create chaosgame-like fractals
 """
 
-from __future__ import division
+from __future__ import division, print_function
 
 import operator
 import optparse
