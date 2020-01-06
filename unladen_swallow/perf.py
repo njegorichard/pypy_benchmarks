@@ -62,6 +62,7 @@ import sys
 import tempfile
 import time
 import threading
+import traceback
 try:
     import urllib2
 except ImportError:
@@ -776,6 +777,7 @@ def CallAndCaptureOutput(command, env=None, track_memory=False, inherit_env=[]):
         assert 'Python3' in result
         return '', None
     elif subproc.returncode != 0:
+        print(result)
         raise RuntimeError("Benchmark died (returncode: %d): %s" %
                            (subproc.returncode, err))
     if track_memory:
@@ -960,7 +962,8 @@ def BM_2to3(*args, **kwargs):
     return SimpleBenchmark(Measure2to3, *args, **kwargs)
 
 
-DJANGO_DIR = Relative("lib/django")
+DJANGO_DIR = os.path.pathsep.join([Relative("lib/django"),
+                                   Relative(os.path.join('..', 'lib'))])
 
 
 def MeasureDjango(python, options):
@@ -1434,7 +1437,8 @@ def MeasureHtml5lib(python, options):
         of memory usage samples in kilobytes.
     """
     bm_path = Relative("performance/bm_html5lib.py")
-    bm_env = {"PYTHONPATH": Relative("lib/html5lib")}
+    bm_env = {"PYTHONPATH": os.pathsep.join([Relative("lib/html5lib"),
+                                Relative(os.path.join('..', 'lib'))])}
     return MeasureGeneric(python, options, bm_path, bm_env,
                           iteration_scaling=0.10)
 
@@ -1621,12 +1625,18 @@ def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
     should_run = ParseBenchmarksOption(options.benchmarks, bench_groups)
 
     results = []
+    errors = []
     for name in sorted(should_run):
         func = bench_funcs[name]
         print("Running %s..." % name)
         # PyPy specific modification: let the func to return a list of results
         # for sub-benchmarks
-        bench_result = func(base_cmd_prefix, changed_cmd_prefix, options)
+        try:
+            bench_result = func(base_cmd_prefix, changed_cmd_prefix, options)
+        except Exception as e:
+            traceback.print_exc()
+            errors.append(e)
+            continue
         name = getattr(func, 'benchmark_name', name)
         if isinstance(bench_result, list):
             for subname, subresult in bench_result:
@@ -1635,6 +1645,8 @@ def main(argv, bench_funcs=BENCH_FUNCS, bench_groups=BENCH_GROUPS):
         else:
             results.append((name, bench_result))
 
+    if len(errors) > 0:
+        raise errors[-1]
     print
     print("Report on %s" % " ".join(platform.uname()))
     if multiprocessing:

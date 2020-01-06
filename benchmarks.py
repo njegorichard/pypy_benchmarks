@@ -58,7 +58,7 @@ def _register_new_bm_base_only(name, bm_name, d, **opts):
 
     d[BM.func_name] = BM
 
-TWISTED = [relative('lib/twisted-trunk'), relative('lib/zope.interface-3.5.3/src'), relative('own/twisted')]
+TWISTED = [relative('lib/twisted-trunk'), relative('lib/zope.interface'), relative('own/twisted')]
 
 opts = {
     'gcbench' : {'iteration_scaling' : .10},
@@ -170,7 +170,10 @@ if sys.version_info[0] < 3:
         pypy-c-jit in the nightly benchmarks, we are not interested in
         ``changed_python`` (aka pypy-c-nojit) right now.
         """
-        if sys.version_info[0] > 2:
+        args = base_python + ['-c','import sys;print(sys.version_info[0])']
+        major = subprocess.check_output(args)
+        major = int(major)
+        if major > 2:
             print('cannot run translation on Python3')
             sys.exit(42)
 
@@ -222,8 +225,11 @@ def BM_cpython_doc(base_python, changed_python, options):
         os.mkdir(docdir)
         htmldir = os.path.join(builddir, 'html')
         os.mkdir(htmldir)
+        env = os.environ.copy()
+        env['PYTHONPATH'] = os.pathsep.join([relative('lib'), relative('lib/jinja2')])
         args = python + [build, '-b', 'html', '-d', docdir, maindir, htmldir]
-        proc = subprocess.Popen(args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        proc = subprocess.Popen(args, stderr=subprocess.PIPE, stdout=subprocess.PIPE,
+                                env=env)
         out, err = proc.communicate()
         retcode = proc.poll()
         if retcode != 0:

@@ -12,9 +12,9 @@ if __name__ == '__main__':
 
     # mangle imports for docutils, since it is python-version specific
     mydir = os.path.dirname(__file__)
-    sys.path.append(mydir) 
-    # add jinja2 in lib/
-    sys.path.append(os.path.abspath(os.path.join(mydir, '..', '..', 'jinja2')))
+    import pprint
+    pprint.pprint(sys.path)
+    sys.path.append(mydir)
     if sys.version_info[0] < 3:
         sys.path.append(os.path.join(mydir, 'docutils2'))
     else:
