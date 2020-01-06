@@ -52,7 +52,7 @@ def run_and_store(benchmark_set, result_filename, changed_path, revision=0,
         'results': results,
         'options': options,
         'branch': branch,
-        }))
+        }, indent=2))
     f.close()
     return results
 

@@ -174,8 +174,7 @@ if sys.version_info[0] < 3:
         major = subprocess.check_output(args)
         major = int(major)
         if major > 2:
-            print('cannot run translation on Python3')
-            sys.exit(42)
+            return [('translate', RawResult([], None))]
 
         translate_py = relative('lib/pypy/rpython/bin/rpython')
         target = relative('lib/pypy/pypy/goal/targetpypystandalone.py')
