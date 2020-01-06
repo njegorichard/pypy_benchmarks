@@ -17,7 +17,6 @@ BENCHMARK_SET = ['richards', 'slowspitfire', 'django',
 if sys.version_info[0] < 3:
     BENCHMARK_SET += [
                  'spambayes',  # no python3 version
-                 'rietveld',   # too hard to adapt to django 0.19.13
                 ]
 BENCHMARK_SET += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
 

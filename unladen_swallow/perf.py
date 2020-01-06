@@ -976,26 +976,6 @@ def BM_Django(*args, **kwargs):
     return SimpleBenchmark(MeasureDjango, *args, **kwargs)
 
 
-def MeasureRietveld(python, options):
-    PYTHONPATH = os.pathsep.join([DJANGO_DIR,
-                           # These paths are lifted from
-                           # lib/google_appengine.appcfg.py.  Note that we use
-                           # our own version of Django instead of Appengine's.
-                           Relative("lib/google_appengine"),
-                           Relative("lib/google_appengine/lib/antlr3"),
-                           Relative("lib/google_appengine/lib/webob"),
-                           Relative("lib/google_appengine/lib/yaml/lib"),
-                           Relative("lib/rietveld")])
-    bm_path = Relative("performance/bm_rietveld.py")
-    bm_env = {"PYTHONPATH": PYTHONPATH, "DJANGO_SETTINGS_MODULE": "settings"}
-
-    return MeasureGeneric(python, options, bm_path, bm_env)
-
-
-def BM_Rietveld(*args, **kwargs):
-    return SimpleBenchmark(MeasureRietveld, *args, **kwargs)
-
-
 def _ComesWithPsyco(python):
     """Determine whether the given Python binary already has Psyco.
 
