@@ -53,7 +53,7 @@ def test_spitfire(count):
         spitfire.compiler.options.o3_options,
         {"enable_filters": False})
 
-    table = [xrange(1000) for _ in xrange(1000)]
+    table = [xrange(1000) for _ in xrange(500)]
 
     # Warm up Spitfire.
     zzz = spitfire_tmpl_o4(search_list=[{"table": table}]).main()
