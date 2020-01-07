@@ -7,9 +7,9 @@ import logging
 import re
 import sys
 if sys.version_info[0] < 3:
-    import StringIO as io
+    import StringIO
 else:
-    import io
+    import io as StringIO
 
 class SyntaxError(Exception):
   """When we run into an unexpected token, this is the exception to use"""
@@ -49,7 +49,21 @@ class Scanner(object):
       self.patterns = []
       for k, r in patterns:
         self.patterns.append( (k, re.compile(r)) )
-        
+
+  def file_position(self, token_index):
+    """Returns the in-file start position of the token at the given index.
+
+    The token must be one of the already read tokens,
+    or the next one we are about to read.  Otherwise,
+    this raises IndexError."""
+    if token_index < len(self.tokens):
+      return self.tokens[token_index][0]
+    elif token_index == len(self.tokens):
+      return self.pos
+    else:
+      raise IndexError(
+          "Can't determine file position of future token %d." % token_index)
+
   def token(self, i, restrict=0):
     """Get the i'th token, and if i is one past the end, then scan
     for another token; restrict is a list of tokens that
@@ -67,14 +81,14 @@ class Scanner(object):
       elif not restrict and not self.restrictions[i]:
         return self.tokens[i]
     raise NoMoreTokens(i, len(self.tokens), self.tokens[i], restrict, self.restrictions[i], self.tokens)
-  
+
   def __repr__(self):
     """Print the last 10 tokens that have been scanned in"""
     output = ''
     for t in self.tokens[-10:]:
       output = '%s\n  (@%s)  %s  =  %s' % (output,t[0],t[2],repr(t[3]))
     return output
-  
+
   def scan(self, restrict):
     """Should scan another token and add it to the list, self.tokens,
     and add the restriction to self.restrictions"""
@@ -93,7 +107,7 @@ class Scanner(object):
           # We got a match that's better than the previous one
           best_pat = p
           best_match = len(m.group(0))
-		  
+
       # If we didn't find anything, raise an error
       if best_pat == '(error)' and best_match < 0:
         msg = "Bad Token"
@@ -122,13 +136,13 @@ class Parser(object):
   def __init__(self, scanner):
     self._scanner = scanner
     self._pos = 0
-    
+
   def _peek(self, *types):
     """Returns the token type for lookahead; if there are any args
     then the list of args is the set of token types to allow"""
     tok = self._scanner.token(self._pos, types)
     return tok[2]
-    
+
   def _scan(self, type):
     """Returns the matched text, and moves to the next token"""
     tok = self._scanner.token(self._pos, [type])
@@ -136,12 +150,15 @@ class Parser(object):
       raise SyntaxError(tok[0], 'Trying to find %s (%s)' % (type, tok[0]))
     self._pos = 1+self._pos
     return tok[3]
-  
+
+  @property
+  def file_position(self):
+    return self._scanner.file_position(self._pos)
 
 
 def format_error(input, err, scanner):
   """This is a really dumb long function to print error messages nicely."""
-  error_message = io.StringIO()
+  error_message = StringIO.StringIO()
   p = err.pos
   print("error position", p, file=error_message)
   # Figure out the line number
@@ -150,7 +167,7 @@ def format_error(input, err, scanner):
   # Now try printing part of the line
   text = input[max(p-80, 0):p+80]
   p = p - max(p-80, 0)
-  
+
   # Strip to the left
   i = text[:p].rfind('\n')
   j = text[:p].rfind('\r')
