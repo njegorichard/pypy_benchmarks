@@ -10,11 +10,18 @@
 #
 # Author: Jonas Borgström <jonas@edgewall.com>
 
+from __future__ import print_function
+
 import cgi
 import sys
 import timeit
-import StringIO
-import cStringIO
+if sys.version_info[0] < 3:
+    import StringIO
+    import cStringIO
+else:
+    import io as StringIO
+    cStringIO = StringIO
+
 try:
     import genshi
     from genshi.builder import tag
@@ -121,7 +128,7 @@ if MakoTemplate:
     def test_mako():
         """Mako Template"""
         data = mako_tmpl.render(table=table)
-        #print "mako", len(data)
+        #print("mako", len(data))
 
 if SpitfireTemplate:
     import spitfire.compiler.analyzer
@@ -141,37 +148,37 @@ if SpitfireTemplate:
         spitfire_src, 'spitfire_tmpl')
 
     spitfire_tmpl_o1 = spitfire.compiler.util.load_template(
-        spitfire_src, 'spitfire_tmpl_o1', spitfire.compiler.analyzer.o1_options,
+        spitfire_src, 'spitfire_tmpl_o1', spitfire.compiler.options.o1_options,
         {'enable_filters':enable_filters})
 
     spitfire_tmpl_o2 = spitfire.compiler.util.load_template(
-        spitfire_src, 'spitfire_tmpl_o2', spitfire.compiler.analyzer.o2_options,
+        spitfire_src, 'spitfire_tmpl_o2', spitfire.compiler.options.o2_options,
         {'enable_filters':enable_filters})
 
     spitfire_tmpl_o3 = spitfire.compiler.util.load_template(
-        spitfire_src, 'spitfire_tmpl_o3', spitfire.compiler.analyzer.o3_options,
+        spitfire_src, 'spitfire_tmpl_o3', spitfire.compiler.options.o3_options,
         {'enable_filters':enable_filters})
 
 
     def test_spitfire():
         """Spitfire template"""
         data = spitfire_tmpl(search_list=[{'table':table}]).main()
-        #print "spitfire", len(data)
+        #print("spitfire", len(data))
 
     def test_spitfire_o1():
         """Spitfire template -O1"""
         data = spitfire_tmpl_o1(search_list=[{'table':table}]).main()
-        #print "spitfire -O1", len(data)
+        #print("spitfire -O1", len(data))
 
     def test_spitfire_o2():
         """Spitfire template -O2"""
         data = spitfire_tmpl_o2(search_list=[{'table':table}]).main()
-        #print "spitfire -O2", len(data)
+        #print("spitfire -O2", len(data))
 
     def test_spitfire_o3():
         """Spitfire template -O3"""
         data = spitfire_tmpl_o3(search_list=[{'table':table}]).main()
-        #print "spitfire -O3", len(data)
+        #print("spitfire -O3", len(data))
 
 if CheetahTemplate:
     cheetah_src = """<table>
@@ -187,30 +194,30 @@ if CheetahTemplate:
     cheetah_template = CheetahTemplate.Template(cheetah_src, searchList=[{'table':table}])
     # force compile
     post = set([k for k, v in sys.modules.iteritems() if v])
-    #print post - pre
+    #print(post - pre)
 
-    #print type(cheetah_template)
+    #print(type(cheetah_template))
     cheetah_template.respond()
     cheetah_template = type(cheetah_template)
 
     def test_cheetah():
         """Cheetah template"""
         data = cheetah_template(searchList=[{'table':table}]).respond()
-        #print "cheetah", len(data)
+        #print("cheetah", len(data))
 
 if genshi:
     def test_genshi():
         """Genshi template"""
         stream = genshi_tmpl.generate(table=table)
         data = stream.render('html', strip_whitespace=False)
-        #print "genshi", len(data)
+        #print("genshi", len(data))
 
     def disabled_test_genshi_text():
         """Genshi text template"""
         stream = genshi_text_tmpl.generate(table=table)
-        print "test_genshi_text", stream
+        print("test_genshi_text", stream)
         data = stream.render('text')
-        print "test_genshi_text", 'data', stream
+        print("test_genshi_text", 'data', stream)
 
     def test_genshi_builder():
         """Genshi template + tag builder"""
@@ -305,7 +312,7 @@ def test_python_cstringio():
     write('<table>\n')
     for row in table:
         write('<tr>\n')
-        for col in row.itervalues():
+        for col in row.values():
             write('<td>\n')
             write('%s' % col)
             write('\n</td>\n')
@@ -321,7 +328,7 @@ def test_python_stringio():
     write('<table>\n')
     for row in table:
         write('<tr>\n')
-        for col in row.itervalues():
+        for col in row.values():
             write('<td>\n')
             write('%s' % col)
             write('\n</td>\n')
@@ -337,7 +344,7 @@ def test_python_array():
     write('<table>\n')
     for row in table:
         write('<tr>\n')
-        for col in row.itervalues():
+        for col in row.values():
             write('<td>\n')
             write('%s' % col)
             write('\n</td>\n')
@@ -369,7 +376,7 @@ def run(which=None, number=10):
             result = '   (not installed?)'
         else:
             result = '%16.2f ms' % (1000 * time)
-        print '%-35s %s' % (getattr(sys.modules[__name__], test).__doc__, result)
+        print('%-35s %s' % (getattr(sys.modules[__name__], test).__doc__, result))
 
 
 if __name__ == '__main__':

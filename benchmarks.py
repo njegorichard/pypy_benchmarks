@@ -113,9 +113,9 @@ for name in ['names', 'iteration', 'tcp', 'pb', ]:#'web']:#, 'accepts']:
                      globals(), bm_env={'PYTHONPATH': os.pathsep.join(TWISTED)},
                                  iteration_scaling=iteration_scaling)
 
-_register_new_bm('spitfire', 'spitfire', globals(),
-    extra_args=['--benchmark=spitfire_o4'])
-_register_new_bm('spitfire', 'spitfire_cstringio', globals(),
+_register_new_bm('spitfire', 'spitfire2', globals(),
+    extra_args=['--benchmark=spitfire_o3'])
+_register_new_bm('spitfire', 'spitfire_cstringio2', globals(),
     extra_args=['--benchmark=python_cstringio'])
 
 # =========================================================================

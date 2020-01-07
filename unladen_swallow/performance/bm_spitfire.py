@@ -47,7 +47,7 @@ def test_spitfire(count):
     # conceivably be interesting to stress Spitfire's lower optimization
     # levels, we assume no-one will be running a production system with those
     # settings.
-    spitfire_tmpl_o4 = spitfire.compiler.util.load_template(
+    spitfire_tmpl_o3 = spitfire.compiler.util.load_template(
         SPITFIRE_SRC,
         "spitfire_tmpl_o3",
         spitfire.compiler.options.o3_options,
@@ -57,7 +57,7 @@ def test_spitfire(count):
 
     # Warm up Spitfire.
     zzz = spitfire_tmpl_o4(search_list=[{"table": table}]).main()
-    spitfire_tmpl_o4(search_list=[{"table": table}]).main()
+    spitfire_tmpl_o3(search_list=[{"table": table}]).main()
 
     times = []
     for _ in xrange(count):

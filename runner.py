@@ -12,7 +12,7 @@ import benchmarks
 from saveresults import save
 from unladen_swallow import perf
 
-BENCHMARK_SET = ['richards', 'slowspitfire', 'django',
+BENCHMARK_SET = ['richards', 'spitfire2', 'django',
                  'html5lib', 'ai']
 if sys.version_info[0] < 3:
     BENCHMARK_SET += [

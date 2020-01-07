@@ -12,7 +12,7 @@ as the baseline and `experiment/python` as the experiment. The --fast and
 --help to get a full list of options that can be passed to -b.
 
 Omitting the -b option will result in the default group of benchmarks being run
-This currently consists of: 2to3, django, nbody, slowspitfire, slowpickle,
+This currently consists of: 2to3, django, nbody, spitfire, slowpickle,
 slowunpickle, spambayes. Omitting -b is the same as specifying `-b default`.
 
 To run every benchmark perf.py knows about, use `-b all`. To see a full list of
@@ -1036,41 +1036,13 @@ def MeasureSpitfire(python, options, env=None, extra_args=[]):
     return MeasureGeneric(python, options, bm_path, env, extra_args)
 
 
-def MeasureSpitfireWithPsyco(python, options):
-    """Use Spitfire to measure Python's performance.
-
-    Args:
-        python: prefix of a command line for the Python binary.
-        options: optparse.Values instance.
-
-    Returns:
-        (perf_data, mem_usage), where perf_data is a list of floats, each the
-        time it took to run the Spitfire test once; mem_usage is a list of
-        memory usage samples in kilobytes.
-    """
-    SPITFIRE_DIR = Relative("lib/spitfire")
-
-    psyco_dir = ""
-    if not _ComesWithPsyco(python):
-        psyco_dir = _BuildPsyco(python)
-
-    env_dirs = filter(bool, [SPITFIRE_DIR, psyco_dir])
-    spitfire_env = {"PYTHONPATH": os.pathsep.join(env_dirs)}
-
-    try:
-        return MeasureSpitfire(python, options, spitfire_env)
-    finally:
-        try:
-            shutil.rmtree(psyco_dir)
-        except OSError:
-            pass
+def BM_Spitfire2(*args, **kwargs):
+    """ Table size was changed in Jan 2020, so the name changed too"""
+    return SimpleBenchmark(MeasureSpitfire, *args, **kwargs)
 
 
-def BM_Spitfire(*args, **kwargs):
-    return SimpleBenchmark(MeasureSpitfireWithPsyco, *args, **kwargs)
-
-
-def BM_SlowSpitfire(base_python, changed_python, options):
+def BM_SlowSpitfire2(base_python, changed_python, options):
+    """ Table size was changed in Jan 2020, so the name changed too"""
     extra_args = ["--disable_psyco"]
     spitfire_env = {"PYTHONPATH": Relative("lib/spitfire")}
 
@@ -1447,7 +1419,7 @@ BENCH_FUNCS = _FindAllBenchmarks(globals())
 # If you update the default group, be sure to update the module docstring, too.
 # An "all" group which includes every benchmark perf.py knows about is generated
 # automatically.
-BENCH_GROUPS = {"default": ["2to3", "django", "nbody", "slowspitfire",
+BENCH_GROUPS = {"default": ["2to3", "django", "nbody", "spitfire",
                             "slowpickle", "slowunpickle", "spambayes"],
                 "startup": ["normal_startup", "startup_nosite"],
                 "regex": ["regex_v8", "regex_effbot", "regex_compile"],
