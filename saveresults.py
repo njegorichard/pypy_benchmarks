@@ -27,6 +27,7 @@ import optparse
 import sys
 import time
 import urllib
+import pprint
 try:
     import urllib2
 except ImportError:
@@ -106,6 +107,7 @@ def send(data, url):
             (str(datetime.today()), data[0]['executable'],
              str(data[0]['commitid']), data[0]['benchmark']))
     print(info)
+    pprint.pprint(data)
     try:
         retries = [1, 2, 3, 6]
         while True:
