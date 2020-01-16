@@ -309,6 +309,7 @@ def main(argv):
                             baseline_path=baseline_path,
                             full_store=full_store, branch=branch)
 
+    errors = []
     for run in [CHANGED, BASELINE]:
         upload = upload_options[run]['upload']
         urls = upload_options[run]['urls']
@@ -321,8 +322,13 @@ def main(argv):
             # prevent to upload results from the nullpython dummy
             host = force_host if force_host else socket.gethostname()
             for url in urls:
-                print(save(project, revision, results, executable, host, url,
+                try:
+                    print(save(project, revision, results, executable, host, url,
                            changed=(run == CHANGED), branch=branch))
+                except IOErrr as e:
+                    errors.append(e)
+    if len(errors) > 0:
+        raise errors[0]
 
 
 if __name__ == '__main__':

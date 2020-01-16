@@ -32,6 +32,7 @@ try:
 except ImportError:
     import urllib.request as urllib2
 import json
+import pprint
 
 
 def save(project, revision, results, executeable, host, url, testing=False,
@@ -76,7 +77,7 @@ def save(project, revision, results, executeable, host, url, testing=False,
             'result_value': value,
             'branch': branch,
         }]
-        if value is None:
+        if not value:
             print("Ignoring skipped result", data)
             continue
         if res_type == "ComparisonResult":
@@ -132,6 +133,8 @@ def send(data, url):
         if hasattr(e, 'readlines'):
             response = "".join([response] + e.readlines())
         print(response)
+        print('when sending')
+        pprint.pprint(data)
         with open('error.html', 'w') as error_file:
             error_file.write(response)
         print("Server (%s) response written to error.html" % (url,))
