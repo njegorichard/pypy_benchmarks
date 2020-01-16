@@ -22,7 +22,8 @@ def _main():
     conn = sqlite3.connect(":memory:")
     conn.execute('create table cos (x, y, z);')
     for i in range(300000):
-        conn.execute('insert into cos values (?, ?, ?)', [i, math.cos(i), str(i)])
+        cur = conn.execute('insert into cos values (?, ?, ?)', [i, math.cos(i), str(i)])
+        cur.close()
     conn.create_function("cos", 1, math.cos)
     for x, cosx1, cosx2 in conn.execute("select x, cos(x), y from cos"):
         assert math.cos(x) == cosx1 == cosx2
