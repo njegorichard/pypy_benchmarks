@@ -16,12 +16,12 @@ Common ones are:
     --fast
     --args=ARGS         arguments to give to pypy-c, must not contain a comma!
 """
-
+from __future__ import print_function
 import sys, os
 import subprocess
 
 if len(sys.argv) < 2 or sys.argv[1].startswith('-'):
-    print __doc__
+    print(__doc__)
     sys.exit(2)
 
 pypy_c = sys.argv[1]
@@ -36,11 +36,11 @@ cmdline = [sys.executable, os.path.join(localdir, 'runner.py'),
            '--changed', os.path.join(localdir, 'nullpython.py'),
            '--full-store',
            ] + sys.argv[1:]
-print
-print 'Executing', cmdline
-print
+print('')
+print('Executing', cmdline)
+print('')
 
 r = subprocess.call(cmdline)
 if r:
-    print >> sys.stderr, '*** exit code %r ***' % (r,)
+    print('*** exit code %r ***' % (r,), file=sys.stderr)
     sys.exit(r)

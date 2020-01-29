@@ -21,12 +21,20 @@ def save(project, revision, results, options, executable, host, testing=False,
         res_type = b[1]
         results = b[2]
         value = 0
-        if res_type == "SimpleComparisonResult" or res_type == 'RawResult':
+        if res_type == "SimpleComparisonResult"
+            if base:
+                value = results['base_time']
+            else:
+                value = results['changed_time']
+            if value is None:
+                continue
+            value = value[0]
+        elif res_type == 'RawResult':
             if base:
                 value = results['base_times']
             else:
                 value = results['changed_times']
-            if value is None:
+            if value is None or len(value) == 0:
                 continue
             value = value[0]
         elif res_type == "ComparisonResult":
@@ -92,6 +100,6 @@ if __name__ == '__main__':
         print parser.usage
         sys.exit(1)
     results = json.load(open(args[1]))['results']
-    save('cpython', options.revision, results, None, 'cpython', 'tannit',
+    save('cpython', options.revision, results, None, 'cpython', 'benchmarker',
          testing=False,
          base=options.base)

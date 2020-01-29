@@ -25,7 +25,7 @@ def _register_new_bm(name, bm_name, d, **opts):
 def _register_new_bm_twisted(name, bm_name, d, **opts):
     def Measure(python, options):
         def parser(line):
-            number = float(line.split(" ")[0])
+            number = float(line.split(b" ")[0])
             if name == 'tcp':
                 return 100*1024*1024/number
             elif name == 'iteration':
