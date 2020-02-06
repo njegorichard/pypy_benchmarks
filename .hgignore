@@ -1,4 +1,7 @@
 .*\.py[co]
 .*~
 lib/cpython-doc/tools/build
+lib/pypy/rpython
+py.ppm
+test_raytrace.ppm
 .*.swp
