@@ -35,7 +35,7 @@ class Client(object):
 
     def run(self, duration, chunkSize):
         self._duration = duration
-        self._bytes = 'x' * chunkSize
+        self._bytes = b'x' * chunkSize
         # Set up a connection
         cc = ClientCreator(self._reactor, Counter)
         d = cc.connectTCP(self._host, self._port)
