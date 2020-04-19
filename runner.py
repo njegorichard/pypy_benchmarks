@@ -325,7 +325,7 @@ def main(argv):
                 try:
                     print(save(project, revision, results, executable, host, url,
                            changed=(run == CHANGED), branch=branch))
-                except IOErrr as e:
+                except IOError as e:
                     errors.append(e)
     if len(errors) > 0:
         raise errors[0]
