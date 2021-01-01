@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
 """Script for testing the performance of pickling/unpickling.
 
@@ -26,53 +27,59 @@ import time
 # Local imports
 import util
 
+if sys.version_info > (3, 0):
+    unicode = str
+    long = int
+    xrange = range
+
+
 gc.disable()  # Minimize jitter.
 
 DICT = {
-    'ads_flags': 0L,
+    'ads_flags': 0,
     'age': 18,
     'birthday': datetime.date(1980, 5, 7),
-    'bulletin_count': 0L,
-    'comment_count': 0L,
+    'bulletin_count': 0,
+    'comment_count': 0,
     'country': 'BR',
     'encrypted_id': 'G9urXXAJwjE',
-    'favorite_count': 9L,
+    'favorite_count': 9,
     'first_name': '',
-    'flags': 412317970704L,
-    'friend_count': 0L,
+    'flags': 412317970704,
+    'friend_count': 0,
     'gender': 'm',
     'gender_for_display': 'Male',
-    'id': 302935349L,
-    'is_custom_profile_icon': 0L,
+    'id': 302935349,
+    'is_custom_profile_icon': 0,
     'last_name': '',
     'locale_preference': 'pt_BR',
-    'member': 0L,
+    'member': 0,
     'tags': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
-    'profile_foo_id': 827119638L,
+    'profile_foo_id': 827119638,
     'secure_encrypted_id': 'Z_xxx2dYx3t4YAdnmfgyKw',
-    'session_number': 2L,
+    'session_number': 2,
     'signup_id': '201-19225-223',
     'status': 'A',
     'theme': 1,
-    'time_created': 1225237014L,
-    'time_updated': 1233134493L,
-    'unread_message_count': 0L,
+    'time_created': 1225237014,
+    'time_updated': 1233134493,
+    'unread_message_count': 0,
     'user_group': '0',
     'username': 'collinwinter',
-    'play_count': 9L,
-    'view_count': 7L,
+    'play_count': 9,
+    'view_count': 7,
     'zip': ''}
 
-TUPLE = ([265867233L, 265868503L, 265252341L, 265243910L, 265879514L,
-          266219766L, 266021701L, 265843726L, 265592821L, 265246784L,
-          265853180L, 45526486L, 265463699L, 265848143L, 265863062L,
-          265392591L, 265877490L, 265823665L, 265828884L, 265753032L], 60)
+TUPLE = ([265867233, 265868503, 265252341, 265243910, 265879514,
+          266219766, 266021701, 265843726, 265592821, 265246784,
+          265853180, 45526486, 265463699, 265848143, 265863062,
+          265392591, 265877490, 265823665, 265828884, 265753032], 60)
 
 
 def mutate_dict(orig_dict, random_source):
     new_dict = dict(orig_dict)
     for key, value in new_dict.items():
-        rand_val = random_source.random() * sys.maxint
+        rand_val = random_source.random() * sys.maxsize
         if isinstance(key, (int, long)):
             new_dict[key] = long(rand_val)
         elif isinstance(value, str):
@@ -92,7 +99,7 @@ def test_pickle(num_obj_copies, pickle, options):
     pickle.dumps(TUPLE, options.protocol)
     pickle.dumps(DICT_GROUP, options.protocol)
 
-    loops = num_obj_copies / 20  # We do 20 runs per loop.
+    loops = num_obj_copies // 20  # We do 20 runs per loop.
     times = []
     for _ in xrange(options.num_runs):
         t0 = time.time()
@@ -172,7 +179,7 @@ def test_unpickle(num_obj_copies, pickle, options):
     pickle.loads(pickled_tuple)
     pickle.loads(pickled_dict_group)
 
-    loops = num_obj_copies / 20  # We do 20 runs per loop.
+    loops = num_obj_copies // 20  # We do 20 runs per loop.
     times = []
     for _ in xrange(options.num_runs):
         t0 = time.time()
@@ -250,7 +257,7 @@ def test_pickle_list(loops, pickle, options):
     pickle.dumps(LIST, options.protocol)
     pickle.dumps(LIST, options.protocol)
 
-    loops = loops / 5  # Scale to compensate for the workload.
+    loops = loops // 5  # Scale to compensate for the workload.
     times = []
     for _ in xrange(options.num_runs):
         t0 = time.time()
@@ -277,7 +284,7 @@ def test_unpickle_list(loops, pickle, options):
     pickle.loads(pickled_list)
     pickle.loads(pickled_list)
 
-    loops = loops / 5  # Scale to compensate for the workload.
+    loops = loops // 5  # Scale to compensate for the workload.
     times = []
     for _ in xrange(options.num_runs):
         t0 = time.time()
@@ -304,7 +311,7 @@ def test_pickle_dict(loops, pickle, options):
     pickle.dumps(MICRO_DICT, options.protocol)
     pickle.dumps(MICRO_DICT, options.protocol)
 
-    loops = max(1, loops / 10)
+    loops = max(1, loops // 10)
     times = []
     for _ in xrange(options.num_runs):
         t0 = time.time()
@@ -323,12 +330,11 @@ if __name__ == "__main__":
     parser = optparse.OptionParser(
         usage="%prog [pickle|unpickle] [options]",
         description=("Test the performance of pickling."))
-    parser.add_option("--use_cpickle", action="store_true",
-                      help="Use the C version of pickle.")
-    parser.add_option("--protocol", action="store", default=2, type="int",
-                      help="Which protocol to use (0, 1, 2).")
+    parser.add_option("--protocol", action="store", default=-1, type="int",
+                      help="Which protocol to use (0, 1, 2, 3, 4, 5).")
     util.add_standard_options_to(parser)
     options, args = parser.parse_args()
+    import pickle
 
     benchmarks = ["pickle", "unpickle", "pickle_list", "unpickle_list",
                   "pickle_dict"]
@@ -339,14 +345,6 @@ if __name__ == "__main__":
     else:
         raise RuntimeError("Need to specify one of %s" % benchmarks)
 
-    if options.use_cpickle:
-        num_obj_copies = 8000
-        import cPickle as pickle
-    else:
-        num_obj_copies = 200
-        import pickle
-
-    if options.protocol > 0:
-        num_obj_copies *= 2  # Compensate for faster protocols.
+    num_obj_copies = 8000
 
     util.run_benchmark(options, num_obj_copies, benchmark, pickle, options)

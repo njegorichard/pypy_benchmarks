@@ -13,7 +13,9 @@ from saveresults import save
 from unladen_swallow import perf
 
 BENCHMARK_SET = ['richards', 'spitfire2', 'django',
-                 'html5lib', 'ai']
+                 'html5lib', 'ai',
+                 # 'pickle', 'unpickle', 'pickle_list', 'unpickle_list', 'pickle_dict',
+                ]
 if sys.version_info[0] < 3:
     BENCHMARK_SET += [
                  'spambayes',  # no python3 version
