@@ -12,15 +12,18 @@ import benchmarks
 from saveresults import save
 from unladen_swallow import perf
 
-BENCHMARK_SET = ['richards', 'spitfire2', 'django',
-                 'html5lib', 'ai',
-                 # 'pickle', 'unpickle', 'pickle_list', 'unpickle_list', 'pickle_dict',
-                ]
+BENCHMARK_DEFAULT = ['richards', 'spitfire2', 'django',
+                     'html5lib', 'ai',
+                    ]
 if sys.version_info[0] < 3:
-    BENCHMARK_SET += [
+    BENCHMARK_DEFAULT += [
                  'spambayes',  # no python3 version
                 ]
-BENCHMARK_SET += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
+BENCHMARK_DEFAULT += perf._FindAllBenchmarks(benchmarks.__dict__).keys()
+BENCHMARK_FULL = BENCHMARK_DEFAULT + [
+                 'pickle', 'unpickle', 'pickle_list', 'unpickle_list',
+                 'pickle_dict',
+                 ]
 
 CHANGED = 'changed'
 BASELINE = 'baseline'
@@ -141,7 +144,7 @@ def main(argv):
         help=("Comma-separated list of benchmarks to run"
               " Valid benchmarks are: %s"
               ". (default: Run all listed benchmarks)"
-              ) % ", ".join(sorted(BENCHMARK_SET)))
+              ) % ", ".join(sorted(BENCHMARK_FULL)))
     benchmark_group.add_option(
         "-f", "--benchmarks-file", metavar="BM_FILE",
         help=("Read the list of benchmarks to run from this file (one "
@@ -286,10 +289,10 @@ def main(argv):
                 for line in bm_file:
                     benchmarks.append(line.strip())
         else:
-            benchmarks = list(BENCHMARK_SET)
+            benchmarks = list(BENCHMARK_DEFAULT)
 
     for benchmark in benchmarks:
-        if benchmark not in BENCHMARK_SET:
+        if benchmark not in BENCHMARK_FULL:
             raise WrongBenchmark(benchmark)
 
     changed_path = options.changed
