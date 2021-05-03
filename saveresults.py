@@ -108,7 +108,7 @@ def send(data, url):
              str(data[0]['commitid']), data[0]['benchmark']))
     print(info)
     try:
-        retries = [1, 2, 3, 6]
+        retries = [1, 3, 6, 20]
         while True:
             try:
                 print('result/add')
