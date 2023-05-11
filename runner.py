@@ -34,7 +34,7 @@ class WrongBenchmark(Exception):
 
 
 def run_and_store(benchmark_set, result_filename, changed_path, revision=0,
-                  options='', branch='default', args='', upload=False,
+                  options='', branch='default', args='', upload=False, memory = False,
                   fast=False, baseline_path=sys.executable, full_store=False):
     funcs = perf.BENCH_FUNCS.copy()
     funcs.update(perf._FindAllBenchmarks(benchmarks.__dict__))
@@ -43,6 +43,8 @@ def run_and_store(benchmark_set, result_filename, changed_path, revision=0,
             '--no_charts']
     if fast:
         opts += ['--fast']
+    if memory:
+        opts += ['--track_memory']
     if args:
         opts += ['--args', args]
     if full_store:
@@ -190,6 +192,9 @@ def main(argv):
     benchmark_group.add_option(
         "--fast", default=False, action="store_true",
         help="Run shorter benchmark runs.")
+    benchmark_group.add_option("-m",
+        "--track_memory", default=False, action="store_true",
+        help="Track memory usage. This only works on Linux.")
     benchmark_group.add_option(
         "--full-store", default=False, action="store_true",
         help="Run the benchmarks with the --no-statistics flag.")
@@ -298,6 +303,7 @@ def main(argv):
     changed_path = options.changed
     baseline_path = options.baseline
     fast = options.fast
+    memory = options.track_memory
     args = options.args
     full_store = options.full_store
     output_filename = options.output_filename
@@ -310,7 +316,7 @@ def main(argv):
         os.nice(options.niceness - os.nice(0))
 
     results = run_and_store(benchmarks, output_filename, changed_path,
-                            revision, args=args, fast=fast,
+                            revision, args=args, fast=fast, memory=memory,
                             baseline_path=baseline_path,
                             full_store=full_store, branch=branch)
 
