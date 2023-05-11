@@ -13,7 +13,7 @@ from saveresults import save
 from unladen_swallow import perf
 
 BENCHMARK_DEFAULT = ['richards', 'spitfire2', 'django',
-                     'html5lib', 'ai',
+                     'html5lib', 'ai', 'nbody'
                     ]
 if sys.version_info[0] < 3:
     BENCHMARK_DEFAULT += [
